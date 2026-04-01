@@ -1,0 +1,8 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/hrpsp/pieceworks.myflexihr.com
+    - cd $DEPLOYPATH/pieceworks-backend && composer install --no-dev --optimize-autoloader
+    - cd $DEPLOYPATH/pieceworks-frontend && npm ci
+    - cd $DEPLOYPATH/pieceworks-frontend && echo "NEXT_PUBLIC_API_URL=https://pieceworks.myflexihr.com/api" > .env.local && npm run build
+    - /bin/pm2 restart pieceworks-frontend --update-env

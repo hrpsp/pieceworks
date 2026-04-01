@@ -1,0 +1,25 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # Handle Authorization Header
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Laravel API routes -> index.php
+    RewriteCond %{REQUEST_URI} ^/api/ [NC]
+    RewriteRule ^ index.php [L]
+
+    RewriteCond %{REQUEST_URI} ^/sanctum/ [NC]
+    RewriteRule ^ index.php [L]
+
+    # Serve real FILES directly (not directories - root must go to proxy)
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    # Everything else -> PHP proxy to Next.js
+    RewriteRule ^ /frontend-proxy.php [L,QSA]
+</IfModule>

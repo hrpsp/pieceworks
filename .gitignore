@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Next.js build output
+pieceworks-frontend/.next/
+pieceworks-frontend/out/
+
+# Environment files (keep .env.example, exclude real secrets)
+.env
+.env.local
+.env.*.local
+pieceworks-backend/.env
+pieceworks-frontend/.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Archives
+*.zip
+*.tar.gz
+
+# cgi-bin
+cgi-bin/
+
+# PHP cache
+*.cache
+
+# cPanel / IDE config
+.claude/
+.well-known/
+cgi-bin/
+
+# Embedded git repos (backend/frontend may have their own .git)
+pieceworks-backend/.git/
+pieceworks-frontend/.git/
