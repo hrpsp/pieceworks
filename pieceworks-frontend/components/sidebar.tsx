@@ -17,8 +17,10 @@ import {
   ChevronRight,
   LogOut,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { clearToken } from '@/lib/api-client';
+import { cn }          from '@/lib/utils';
+import { clearToken }   from '@/lib/api-client';
+import { useAuth }      from '@/hooks/useAuth';
+import { Avatar }       from '@/components/pieceworks/Avatar';
 
 const NAV_ITEMS = [
   { href: '/dashboard',    label: 'Dashboard',    icon: LayoutDashboard },
@@ -37,6 +39,7 @@ const COLLAPSED_KEY = 'pw_sidebar_collapsed';
 export function Sidebar() {
   const pathname  = usePathname();
   const router    = useRouter();
+  const { user }  = useAuth();
   const [collapsed, setCollapsed] = useState(false);
 
   // Restore persisted collapse state
@@ -103,8 +106,30 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Bottom: logout + collapse toggle */}
+      {/* Bottom: user identity + logout + collapse toggle */}
       <div className="border-t border-white/10 p-2 space-y-0.5">
+
+        {/* User identity strip */}
+        {user && (
+          <div className={cn(
+            'flex items-center gap-2.5 px-2 py-2 rounded-md',
+            collapsed ? 'justify-center' : ''
+          )}>
+            <Avatar
+              name={user.name}
+              role={user.role}
+              size="xs"
+              className="shrink-0 ring-1 ring-white/20"
+            />
+            {!collapsed && (
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-white truncate leading-tight">{user.name}</p>
+                <p className="text-[10px] text-white/50 capitalize truncate leading-tight">{user.role}</p>
+              </div>
+            )}
+          </div>
+        )}
+
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-2 py-2 rounded-md text-sm text-white/60 hover:bg-white/10 hover:text-white transition-colors"

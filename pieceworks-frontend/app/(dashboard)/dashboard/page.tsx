@@ -5,6 +5,7 @@ import { useWorkers }        from '@/hooks/useWorkers';
 import { useQuery }          from '@tanstack/react-query';
 import { apiClient }         from '@/lib/api-client';
 import { Skeleton }          from '@/components/ui/skeleton';
+import { StatCard }          from '@/components/pieceworks/StatCard';
 import {
   Users, Layers, AlertTriangle, TrendingUp,
 } from 'lucide-react';
@@ -28,28 +29,6 @@ interface ReconciliationResponse {
     active_rate_card: { id: number; version: string; effective_date: string } | null;
     needs_review: unknown[];
   };
-}
-
-// ── Stat card ────────────────────────────────────────────────────────────────
-
-function StatCard({
-  label, value, sub, icon: Icon, accent = false,
-}: {
-  label: string; value: string | number; sub?: string;
-  icon: React.ElementType; accent?: boolean;
-}) {
-  return (
-    <div className="bg-card rounded-xl border border-border p-5 flex items-start gap-4">
-      <div className={`p-2.5 rounded-lg ${accent ? 'bg-brand-peach/20' : 'bg-brand-dark/5'}`}>
-        <Icon size={18} className={accent ? 'text-brand-peach' : 'text-brand-dark'} />
-      </div>
-      <div>
-        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{label}</p>
-        <p className="text-2xl font-bold text-foreground mt-0.5">{value}</p>
-        {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
-      </div>
-    </div>
-  );
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────

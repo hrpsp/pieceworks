@@ -12,6 +12,7 @@ import { Skeleton }     from '@/components/ui/skeleton';
 import { Badge }        from '@/components/ui/badge';
 import { Download, AlertCircle, ShieldCheck, FileText } from 'lucide-react';
 import type { ApiEnvelope } from '@/lib/api-client';
+import { StatCard } from '@/components/pieceworks/StatCard';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -133,8 +134,8 @@ export function MinWageComplianceReport() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard label="Total Workers"        value={summary.total_workers} />
           <StatCard label="Workers Topped Up"    value={summary.workers_topped_up}
-            accent={summary.workers_topped_up > 0} />
-          <StatCard label="Total Top-Up"         value={formatPKR(summary.total_top_up_amount)} accent={summary.total_top_up_amount > 0}/>
+            warning={summary.workers_topped_up > 0} />
+          <StatCard label="Total Top-Up"         value={formatPKR(summary.total_top_up_amount)} warning={summary.total_top_up_amount > 0} />
           <StatCard label="Contractors Affected" value={summary.contractors_affected} />
         </div>
       )}
@@ -190,13 +191,3 @@ export function MinWageComplianceReport() {
   );
 }
 
-// ── Stat card ─────────────────────────────────────────────────────────────────
-
-function StatCard({ label, value, accent }: { label: string; value: string | number; accent?: boolean }) {
-  return (
-    <div className={`rounded-xl border p-4 ${accent ? 'border-amber-200 bg-amber-50/50' : 'border-border bg-card'}`}>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`text-xl font-bold mt-1 ${accent ? 'text-amber-700' : 'text-foreground'}`}>{value}</p>
-    </div>
-  );
-}

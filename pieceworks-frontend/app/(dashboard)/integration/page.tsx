@@ -16,6 +16,7 @@ import { apiClient }         from '@/lib/api-client';
 import { Badge }             from '@/components/ui/badge';
 import { Button }            from '@/components/ui/button';
 import { Skeleton }          from '@/components/ui/skeleton';
+import { StatCard }          from '@/components/pieceworks/StatCard';
 import { Input }             from '@/components/ui/input';
 import {
   Select,
@@ -95,28 +96,6 @@ function StagingBadge({ status }: { status: StagingStatus }) {
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${cfg.cls}`}>
       {cfg.label}
     </span>
-  );
-}
-
-// ── Stat card ─────────────────────────────────────────────────────────────────
-
-function StatCard({
-  label, value, sub, icon: Icon, accent = false, warning = false,
-}: {
-  label: string; value: string | number; sub?: string;
-  icon: React.ElementType; accent?: boolean; warning?: boolean;
-}) {
-  return (
-    <div className="bg-card rounded-xl border border-border p-5 flex items-start gap-4">
-      <div className={`p-2.5 rounded-lg shrink-0 ${warning ? 'bg-amber-100' : accent ? 'bg-brand-peach/20' : 'bg-brand-dark/5'}`}>
-        <Icon size={18} className={warning ? 'text-amber-600' : accent ? 'text-brand-peach' : 'text-brand-dark'} />
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{label}</p>
-        <p className="text-2xl font-bold text-foreground mt-0.5">{value}</p>
-        {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
-      </div>
-    </div>
   );
 }
 
