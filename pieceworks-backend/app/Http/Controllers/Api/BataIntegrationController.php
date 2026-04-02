@@ -86,6 +86,31 @@ class BataIntegrationController extends Controller
         ]);
     }
 
+    // ── GET /api/integration/bata/events ────────────────────────────────────
+
+    /**
+     * Paginated list of sync event log entries (most recent first).
+     * Used by the frontend sync history panel.
+     */
+    public function events(Request $request): JsonResponse
+    {
+        $perPage = min((int) $request->query('per_page', 20), 100);
+
+        $logs = ApiSyncLog::where('sync_type', 'bata_poll')
+            ->orderByDesc('synced_at')
+            ->paginate($perPage);
+
+        return response()->json([
+            'data' => $logs->items(),
+            'meta' => [
+                'current_page' => $logs->currentPage(),
+                'last_page'    => $logs->lastPage(),
+                'per_page'     => $logs->perPage(),
+                'total'        => $logs->total(),
+            ],
+        ]);
+    }
+
     // ── GET /api/integration/bata/staging?date=&status= ─────────────────────
 
     /**

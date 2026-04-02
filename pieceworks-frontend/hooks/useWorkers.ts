@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, type ApiEnvelope, type PaginatedEnvelope } from '@/lib/api-client';
 
 // ── Domain types ─────────────────────────────────────────────────────────────
@@ -96,6 +96,33 @@ export function useWorker(id: number | null | undefined) {
     queryFn: () =>
       apiClient.get<ApiEnvelope<Worker>>(`/workers/${id}`),
     enabled: id != null && id > 0,
+  });
+}
+
+// ── Create worker ─────────────────────────────────────────────────────────────
+
+export interface CreateWorkerPayload {
+  name:            string;
+  cnic:            string;
+  grade:           string;
+  default_shift:   'morning' | 'evening' | 'night';
+  join_date:       string;
+  worker_type:     'direct' | 'contractor';
+  contractor_id?:  number | null;
+  payment_method:  'cash' | 'bank' | 'easypaisa' | 'jazzcash';
+  payment_number?: string;
+  whatsapp?:       string;
+  status:          'active' | 'inactive';
+}
+
+export function useCreateWorker() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateWorkerPayload) =>
+      apiClient.post<ApiEnvelope<Worker>>('/workers', payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: workerKeys.all });
+    },
   });
 }
 

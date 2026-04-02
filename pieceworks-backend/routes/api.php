@@ -66,6 +66,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/',               [RateCardController::class, 'index'])->middleware('permission:workers.view_all');
         Route::post('/',              [RateCardController::class, 'store'])->middleware('permission:rate_cards.manage');
         Route::get('{id}',            [RateCardController::class, 'show'])->middleware('permission:workers.view_all');
+        Route::get('{id}/entries',    [RateCardController::class, 'entries'])->middleware('permission:workers.view_all');
         Route::post('{id}/activate',  [RateCardController::class, 'activate'])->middleware('permission:rate_cards.manage');
     });
 
@@ -192,12 +193,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('{weekRef}/disputes/{worker_id}',[PayrollStatementController::class, 'dispute'])->middleware('permission:workers.view_all');
     });
 
-    Route::get('workers/{id}/statement/{weekRef}',   [PayrollStatementController::class, 'workerStatement'])->middleware('permission:workers.view_all');
+    Route::get('workers/{id}/statement/{weekRef}',         [PayrollStatementController::class, 'workerStatement'])->middleware('permission:workers.view_all');
+    Route::post('workers/{id}/statement/{weekRef}/generate',     [PayrollStatementController::class, 'generateWorkerStatement'])->middleware('permission:payroll.lock');
+    Route::post('workers/{id}/statement/{weekRef}/send-whatsapp',[PayrollStatementController::class, 'sendWorkerWhatsApp'])->middleware('permission:payroll.lock');
 
     // ── Bata Integration ──────────────────────────────────────────────────────
     // Static named routes before {id} wildcard
     Route::prefix('integration/bata')->group(function () {
         Route::get('status',                              [BataIntegrationController::class, 'status'])->middleware('permission:workers.view_all');
+        Route::get('events',                              [BataIntegrationController::class, 'events'])->middleware('permission:workers.view_all');
         Route::post('sync-now',                           [BataIntegrationController::class, 'syncNow'])->middleware('permission:payroll.run');
         Route::get('staging',                             [BataIntegrationController::class, 'staging'])->middleware('permission:workers.view_all');
         Route::post('map-worker',                         [BataIntegrationController::class, 'mapWorker'])->middleware('permission:workers.edit');

@@ -3,6 +3,7 @@
 import { useState }        from 'react';
 import { useRouter }       from 'next/navigation';
 import { useWorkers, type WorkerFilters } from '@/hooks/useWorkers';
+import { AddWorkerModal }  from '@/components/pieceworks/AddWorkerModal';
 import { Input }           from '@/components/ui/input';
 import { Button }          from '@/components/ui/button';
 import { Badge }           from '@/components/ui/badge';
@@ -31,6 +32,7 @@ export default function WorkersPage() {
   const [shift,     setShift]     = useState<string>('all');
   const [page,      setPage]      = useState(1);
   const [inputVal,  setInputVal]  = useState('');
+  const [showAdd,   setShowAdd]   = useState(false);
 
   const filters: WorkerFilters = {
     page,
@@ -70,7 +72,10 @@ export default function WorkersPage() {
             {meta ? `${meta.total} workers total` : 'Loading…'}
           </p>
         </div>
-        <Button className="bg-brand-dark hover:bg-brand-mid text-white gap-2">
+        <Button
+          className="bg-brand-dark hover:bg-brand-mid text-white gap-2"
+          onClick={() => setShowAdd(true)}
+        >
           <UserPlus size={15} /> Add Worker
         </Button>
       </div>
@@ -209,6 +214,9 @@ export default function WorkersPage() {
           </div>
         </div>
       )}
+
+      {/* Add Worker Modal */}
+      <AddWorkerModal open={showAdd} onClose={() => setShowAdd(false)} />
     </div>
   );
 }

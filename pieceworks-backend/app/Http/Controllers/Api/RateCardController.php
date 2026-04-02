@@ -178,6 +178,25 @@ class RateCardController extends Controller
         ], 'Rate card retrieved.');
     }
 
+    // ── Entries ─────────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/rate-cards/{id}/entries
+     *
+     * Flat list of all entries for a rate card — used by the frontend matrix view.
+     */
+    public function entries(int $id): JsonResponse
+    {
+        $card    = RateCard::findOrFail($id);
+        $entries = $card->entries()
+            ->orderBy('task')
+            ->orderBy('worker_grade')
+            ->orderBy('complexity_tier')
+            ->get();
+
+        return $this->success($entries, 'Rate card entries retrieved.');
+    }
+
     // ── Activate ────────────────────────────────────────────────────────────
 
     /**

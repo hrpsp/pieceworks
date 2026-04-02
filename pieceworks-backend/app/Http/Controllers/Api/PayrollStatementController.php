@@ -182,6 +182,73 @@ class PayrollStatementController extends Controller
         ]);
     }
 
+    // ── POST /api/workers/{id}/statement/{weekRef}/generate ─────────────────
+
+    /**
+     * Generate (or regenerate) the payslip for a single worker + week.
+     * The payroll run must be locked or paid.
+     */
+    public function generateWorkerStatement(int $id, string $weekRef): JsonResponse
+    {
+        $run = WeeklyPayrollRun::where('week_ref', $weekRef)->firstOrFail();
+
+        if (! in_array($run->status, ['locked', 'paid'])) {
+            return $this->error(
+                "Statements can only be generated for locked or paid runs (current: {$run->status}).",
+                409
+            );
+        }
+
+        $worker = Worker::findOrFail($id);
+
+        try {
+            $result = $this->statementService->generateStatement($worker->id, $run->id);
+        } catch (\Throwable $e) {
+            return $this->error("Could not generate statement: {$e->getMessage()}", 422);
+        }
+
+        return $this->success([
+            'generated' => true,
+            'message'   => "Statement generated for {$worker->name} — week {$weekRef}.",
+            'data'      => $result,
+        ]);
+    }
+
+    // ── POST /api/workers/{id}/statement/{weekRef}/send-whatsapp ────────────
+
+    /**
+     * Enqueue WhatsApp delivery for a single worker's generated statement.
+     */
+    public function sendWorkerWhatsApp(int $id, string $weekRef): JsonResponse
+    {
+        $run = WeeklyPayrollRun::where('week_ref', $weekRef)->firstOrFail();
+
+        $statement = WorkerStatement::where('worker_id', $id)
+            ->where('payroll_run_id', $run->id)
+            ->with('worker:id,name,whatsapp')
+            ->first();
+
+        if (! $statement) {
+            return $this->error(
+                'No statement found. Generate the statement first.',
+                404
+            );
+        }
+
+        if (empty($statement->worker?->whatsapp)) {
+            return $this->error(
+                "Worker has no WhatsApp number on file.",
+                422
+            );
+        }
+
+        SendWorkerStatementJob::dispatch($statement->id)->onQueue('notifications');
+
+        return $this->success([
+            'message' => "WhatsApp delivery queued for {$statement->worker->name}.",
+        ]);
+    }
+
     // ── POST /api/payroll/{weekRef}/disputes/{worker_id} ─────────────────────
 
     /**
