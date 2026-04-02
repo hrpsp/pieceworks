@@ -17,3 +17,10 @@ auth.json
 npm-debug.log
 yarn-error.log
 /bootstrap/cache/*.php
+
+# Runtime / server artifacts – do NOT commit
+error_log
+/storage/framework/views/*.php
+/storage/framework/cache/data/
+/storage/logs/*.log
+/public/build_log.txt

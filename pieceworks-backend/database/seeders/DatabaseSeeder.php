@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
             FactoryLocationsSeeder::class,
             PublicHolidaysSeeder::class,
             AdminUserSeeder::class,
+            RateCardSeeder::class,
         ]);
     }
 }

@@ -212,4 +212,22 @@ class WorkerController extends Controller
             'Shift adjustments retrieved'
         );
     }
+
+    // ── GET /api/workers/{worker}/loans ──────────────────────────────────
+
+    public function loans(Worker $worker): JsonResponse
+    {
+        $loans = $worker->loans()->orderBy('disbursed_at', 'desc')->get();
+
+        return $this->success($loans);
+    }
+
+    // ── GET /api/workers/{worker}/compliance ─────────────────────────────
+
+    public function compliance(Worker $worker): JsonResponse
+    {
+        $compliance = $worker->compliance;
+
+        return $this->success($compliance);
+    }
 }

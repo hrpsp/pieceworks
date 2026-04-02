@@ -103,4 +103,14 @@ return [
         'afternoon' => ['start' => '15:00', 'end' => '23:00'],
         'night'     => ['start' => '23:00', 'end' => '07:00'], // ends next day
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Payment & Integration Settings
+    |--------------------------------------------------------------------------
+    */
+    'jazzcash_daily_limit'         => env('PAYROLL_JAZZCASH_DAILY_LIMIT', 25_000.00),
+    'dispute_window_hours'         => env('PAYROLL_DISPUTE_WINDOW_HOURS', 12),
+    'ghost_worker_anomaly_threshold' => env('PAYROLL_GHOST_ANOMALY_MULTIPLIER', 2.0),
+    'bata_api_poll_interval_minutes' => env('BATA_API_POLL_INTERVAL', 30),
 ];

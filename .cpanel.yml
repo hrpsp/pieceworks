@@ -1,8 +1,35 @@
 ---
 deployment:
   tasks:
+    # ── 0. Paths ──────────────────────────────────────────────────────────────
     - export DEPLOYPATH=/home/hrpsp/pieceworks.myflexihr.com
-    - cd $DEPLOYPATH/pieceworks-backend && /home/hrpsp/bin/composer install --no-dev --optimize-autoloader
-    - cd $DEPLOYPATH/pieceworks-frontend && /bin/npm ci
-    - cd $DEPLOYPATH/pieceworks-frontend && echo "NEXT_PUBLIC_API_URL=https://pieceworks.myflexihr.com/api" > .env.local && NODE_OPTIONS="--max-old-space-size=512" /bin/npm run build
-    - /bin/bash /home/hrpsp/bin/rfw.sh
+    - export BACKENDPATH=$DEPLOYPATH/pieceworks-backend
+    - export FRONTENDPATH=$DEPLOYPATH/pieceworks-frontend
+
+    # ── 1. Backend: PHP dependencies (production-only, optimised autoloader) ──
+    - cd $BACKENDPATH && /home/hrpsp/bin/composer install --no-dev --optimize-autoloader --no-interaction
+
+    # ── 2. Backend: Laravel optimisation caches ────────────────────────────────
+    - cd $BACKENDPATH && php artisan config:cache
+    - cd $BACKENDPATH && php artisan route:cache
+    - cd $BACKENDPATH && php artisan view:cache
+    - cd $BACKENDPATH && php artisan event:cache
+
+    # ── 3. Backend: Database migrations (safe – skips already-ran migrations) ──
+    - cd $BACKENDPATH && php artisan migrate --force --no-interaction
+
+    # ── 4. Backend: Storage symlink (idempotent) ───────────────────────────────
+    - cd $BACKENDPATH && php artisan storage:link --force 2>/dev/null || true
+
+    # ── 5. Backend: Restart queue workers (picks up new Job classes) ──────────
+    - cd $BACKENDPATH && php artisan queue:restart
+
+    # ── 6. Frontend: Install exact locked dependencies ─────────────────────────
+    - cd $FRONTENDPATH && /bin/npm ci --omit=dev
+
+    # ── 7. Frontend: Inject runtime env then build ─────────────────────────────
+    - cd $FRONTENDPATH && echo "NEXT_PUBLIC_API_URL=https://pieceworks.myflexihr.com/api" > .env.local
+    - cd $FRONTENDPATH && NODE_OPTIONS="--max-old-space-size=512" /bin/npm run build
+
+    # ── 8. Reload PHP-FPM / FastCGI if rfw.sh is present ─────────────────────
+    - /bin/bash /home/hrpsp/bin/rfw.sh 2>/dev/null || true

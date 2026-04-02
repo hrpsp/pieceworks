@@ -7,8 +7,8 @@
 
 // ── Primitive union types ─────────────────────────────────────────────────────
 
-export type ShiftType       = 'morning' | 'evening' | 'night';
-export type PaymentMethod   = 'cash' | 'bank' | 'easypaisa' | 'jazzcash';
+export type ShiftType       = 'morning' | 'afternoon' | 'night';
+export type PaymentMethod   = 'cash' | 'bank_transfer' | 'easypaisa' | 'jazzcash';
 export type ValidationStatus= 'pending' | 'validated' | 'disputed' | 'rejected';
 export type ProductionSource= 'bata_api' | 'manual_supervisor' | 'manual_backfill';
 
@@ -81,7 +81,7 @@ export interface Contractor {
 
 // ── Rate Card ─────────────────────────────────────────────────────────────────
 
-export type ComplexityTier = 'basic' | 'standard' | 'premium';
+export type ComplexityTier = 'simple' | 'standard' | 'complex' | 'premium';
 
 export interface RateCardEntry {
   id:            number;
@@ -539,4 +539,100 @@ export interface Role {
   permissions:  string[];   // array of permission slugs
   created_at:   string;
   updated_at:   string;
+}
+
+// ── Additional Payroll Enums ──────────────────────────────────────────────────
+
+export type PayrollStatusEnum = 'open' | 'processing' | 'locked' | 'paid' | 'reversed';
+
+export type ExceptionTypeEnum =
+  | 'below_floor'
+  | 'shift_adj'
+  | 'no_biometric'
+  | 'eobi_missing'
+  | 'rejection'
+  | 'loan_overdue'
+  | 'advance_carry'
+  | 'tenure_milestone'
+  | 'contractor_expiry';
+
+export type AttendanceStatusEnum = 'present' | 'absent' | 'idle' | 'zero_production';
+
+export type PenaltyTypeEnum = 'reduce_pairs' | 'flat_penalty' | 'flag_only';
+
+export type ValidationStatusEnum = 'clean' | 'warning' | 'error' | 'held';
+
+export type StagingValidationStatusEnum = 'clean' | 'warning' | 'error' | 'held';
+
+// ── Extended Payroll Types ────────────────────────────────────────────────────
+
+export interface WorkerCompliance {
+  id: number;
+  worker_id: number;
+  eobi_number: string | null;
+  pessi_number: string | null;
+  eobi_registered_at: string | null;
+  pessi_registered_at: string | null;
+  ntn_number: string | null;
+  tax_status: 'exempt' | 'applicable';
+  wht_applicable: boolean;
+}
+
+export interface StagingRecordExt {
+  id: number;
+  external_worker_id: string;
+  pieceworks_worker_id: number | null;
+  line_id: number | null;
+  style_code: string;
+  operation: string;
+  pairs_completed: number;
+  pairs_rejected: number;
+  work_date: string;
+  shift: string;
+  raw_payload: Record<string, unknown>;
+  source_tag: string;
+  validation_status: StagingValidationStatusEnum;
+  validation_errors: Record<string, string> | null;
+  processed: boolean;
+}
+
+export interface BataApiSyncStatusExt {
+  last_sync_at: string | null;
+  status: 'healthy' | 'warning' | 'error' | 'offline';
+  records_received: number;
+  records_clean: number;
+  records_held: number;
+  error_message: string | null;
+}
+
+export interface FactoryLocation {
+  id: number;
+  name: string;
+  city: string;
+  province: string;
+  address: string | null;
+  is_active: boolean;
+}
+
+export interface TenureMilestoneExt {
+  worker_id: number;
+  worker_name: string;
+  join_date: string;
+  milestone_days: number;
+  milestone_date: string;
+  days_away: number;
+}
+
+export interface ContractorSettlementExt {
+  id: number;
+  contractor_id: number;
+  payroll_run_id: number;
+  week_ref: string;
+  total_pairs: number;
+  contracted_rate_avg: number;
+  bata_owes: number;
+  workers_paid: number;
+  contractor_margin: number;
+  settlement_status: 'pending' | 'approved' | 'paid';
+  settled_at: string | null;
 }

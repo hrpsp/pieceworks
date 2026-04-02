@@ -89,6 +89,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('weekly-summary',     [WorkerController::class, 'weeklySummary']);
         Route::get('advances',           [WorkerController::class, 'advances']);
         Route::get('shift-adjustments',  [WorkerController::class, 'shiftAdjustments']);
+        Route::get('loans',              [WorkerController::class, 'loans']);
+        Route::get('compliance',         [WorkerController::class, 'compliance']);
     });
 
     // ── Production ────────────────────────────────────────────────────────────
@@ -162,6 +164,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/',               [AdvanceController::class, 'store'])->middleware('permission:payroll.run');
         Route::get('/',                [AdvanceController::class, 'index'])->middleware('permission:workers.view_all');
         Route::patch('{id}/approve',   [AdvanceController::class, 'approve'])->middleware('permission:payroll.run');
+        Route::patch('{id}/reject',    [AdvanceController::class, 'reject'])->middleware('permission:advances.approve');
     });
 
     // ── Loans ─────────────────────────────────────────────────────────────────
@@ -224,6 +227,26 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('tenure-milestones',      [ReportsController::class, 'tenureMilestones'])->middleware('permission:reports.view_all');
         Route::get('rejection-analysis',     [ReportsController::class, 'rejectionAnalysis'])->middleware('permission:reports.view_own');
         Route::get('annual-payroll-summary', [ReportsController::class, 'annualPayrollSummary'])->middleware('permission:reports.view_all');
+    });
+
+    // ── Contractors ──────────────────────────────────────────────────────────────
+    Route::prefix('contractors')->group(function () {
+        Route::get('/',                              [\App\Http\Controllers\Api\ContractorController::class, 'index'])->middleware('permission:workers.view_all');
+        Route::post('/',                             [\App\Http\Controllers\Api\ContractorController::class, 'store'])->middleware('permission:workers.create');
+        Route::get('{id}',                           [\App\Http\Controllers\Api\ContractorController::class, 'show'])->middleware('permission:workers.view_all');
+        Route::put('{id}',                           [\App\Http\Controllers\Api\ContractorController::class, 'update'])->middleware('permission:workers.create');
+        Route::delete('{id}',                        [\App\Http\Controllers\Api\ContractorController::class, 'destroy'])->middleware('permission:workers.create');
+        Route::get('{id}/workers',                   [\App\Http\Controllers\Api\ContractorController::class, 'workers'])->middleware('permission:workers.view_all');
+        Route::get('{id}/settlements',               [\App\Http\Controllers\Api\ContractorController::class, 'settlements'])->middleware('permission:workers.view_all');
+        Route::get('{id}/performance-scores',        [\App\Http\Controllers\Api\ContractorController::class, 'performanceScores'])->middleware('permission:workers.view_all');
+    });
+
+    // ── Lines ────────────────────────────────────────────────────────────────────
+    Route::prefix('lines')->group(function () {
+        Route::get('/',      [\App\Http\Controllers\Api\LineController::class, 'index'])->middleware('permission:workers.view_all');
+        Route::post('/',     [\App\Http\Controllers\Api\LineController::class, 'store'])->middleware('permission:workers.create');
+        Route::get('{id}',   [\App\Http\Controllers\Api\LineController::class, 'show'])->middleware('permission:workers.view_all');
+        Route::put('{id}',   [\App\Http\Controllers\Api\LineController::class, 'update'])->middleware('permission:workers.create');
     });
 });
 

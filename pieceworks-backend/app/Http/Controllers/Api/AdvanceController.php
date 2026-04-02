@@ -129,4 +129,20 @@ class AdvanceController extends Controller
             'Advance approved.'
         );
     }
+
+    /**
+     * PATCH /api/advances/{id}/reject
+     */
+    public function reject(int $id): JsonResponse
+    {
+        $advance = Advance::findOrFail($id);
+
+        if ($advance->status !== 'pending') {
+            return $this->error('Only pending advances can be rejected', 422);
+        }
+
+        $advance->update(['status' => 'rejected']);
+
+        return $this->success($advance, 'Advance rejected');
+    }
 }
