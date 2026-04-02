@@ -4,5 +4,5 @@ deployment:
     - export DEPLOYPATH=/home/hrpsp/pieceworks.myflexihr.com
     - cd $DEPLOYPATH/pieceworks-backend && /home/hrpsp/bin/composer install --no-dev --optimize-autoloader
     - cd $DEPLOYPATH/pieceworks-frontend && /bin/npm ci
-    - cd $DEPLOYPATH/pieceworks-frontend && echo "NEXT_PUBLIC_API_URL=https://pieceworks.myflexihr.com/api" > .env.local && /bin/npm run build
-    - /bin/pm2 restart pieceworks-frontend --update-env
+    - cd $DEPLOYPATH/pieceworks-frontend && echo "NEXT_PUBLIC_API_URL=https://pieceworks.myflexihr.com/api" > .env.local && NODE_OPTIONS="--max-old-space-size=512" /bin/npm run build
+    - /bin/bash /home/hrpsp/bin/rfw.sh
