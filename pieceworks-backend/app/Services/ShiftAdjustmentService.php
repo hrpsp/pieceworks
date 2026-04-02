@@ -19,8 +19,8 @@ class ShiftAdjustmentService
 
     public function __construct()
     {
-        $this->shiftTimes  = config('payroll.shift_times');
-        $this->minGapHours = (int) config('payroll.min_gap_hours', 8);
+        $this->shiftTimes  = config('pieceworks.shift_times');
+        $this->minGapHours = (int) config('pieceworks.min_gap_hours', 8);
     }
 
     // ── Public API ──────────────────────────────────────────────────────────
@@ -244,7 +244,7 @@ class ShiftAdjustmentService
      */
     private function applyOtPremium(ProductionRecord $record): void
     {
-        $multiplier = (float) config('payroll.ot_multiplier', 1.0);
+        $multiplier = (float) config('pieceworks.ot_multiplier', 1.0);
         $otPremium  = round((float) $record->pairs_produced * (float) $record->rate_amount * $multiplier, 2);
 
         $record->updateQuietly([

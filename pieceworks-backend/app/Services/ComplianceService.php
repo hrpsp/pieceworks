@@ -115,7 +115,7 @@ class ComplianceService
             ->avg('total_gross') ?? 0.0);
 
         $projectedAnnual = round($weeklyAvg * 52, 2);
-        $whtThreshold    = (float) config('payroll.wht_threshold', 600_000.00);
+        $whtThreshold    = (float) config('pieceworks.wht_threshold', 600_000.00);
 
         return [
             'projected_annual'       => $projectedAnnual,

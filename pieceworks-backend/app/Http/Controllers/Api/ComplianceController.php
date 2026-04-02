@@ -94,7 +94,7 @@ class ComplianceController extends Controller
             'year' => ['nullable', 'integer', 'min:2020', 'max:2100'],
         ]);
 
-        $whtThreshold = (float) config('payroll.wht_threshold', 600_000.00);
+        $whtThreshold = (float) config('pieceworks.wht_threshold', 600_000.00);
 
         $workers = Worker::where('status', 'active')
             ->whereHas('weeklyPayrolls')
@@ -144,7 +144,7 @@ class ComplianceController extends Controller
      */
     public function tenureMilestones(): JsonResponse
     {
-        $lookAhead  = (int) config('payroll.tenure_lookahead_days', 30);
+        $lookAhead  = (int) config('pieceworks.tenure_lookahead_days', 30);
         $milestones = [90, 365, 1095, 1825];
         $today      = Carbon::today();
         $results    = [];

@@ -1,5 +1,17 @@
 <?php
 
+/**
+ * PieceWorks — application configuration
+ *
+ * Covers: payroll rules, shift times, compliance thresholds,
+ * advance settings, integration parameters, and system defaults.
+ *
+ * Previously: config/payroll.php — renamed to config/pieceworks.php
+ * to reflect the broader scope of this module.
+ *
+ * All values can be overridden via the corresponding .env keys.
+ */
+
 return [
 
     /*

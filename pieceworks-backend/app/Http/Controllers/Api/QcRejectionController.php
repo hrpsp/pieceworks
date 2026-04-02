@@ -97,7 +97,7 @@ class QcRejectionController extends Controller
 
                 // ── flat_penalty ──────────────────────────────────────────
                 case 'flat_penalty':
-                    $ratePerPair   = (float) config('payroll.rejection_penalty_per_pair', 5.0);
+                    $ratePerPair   = (float) config('pieceworks.rejection_penalty_per_pair', 5.0);
                     $penaltyAmount = round($data['pairs_rejected'] * $ratePerPair, 2);
 
                     Deduction::create([

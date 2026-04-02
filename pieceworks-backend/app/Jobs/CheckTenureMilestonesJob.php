@@ -21,7 +21,7 @@ class CheckTenureMilestonesJob implements ShouldQueue
 
     public function handle(): void
     {
-        $lookahead = config('payroll.tenure_lookahead_days', 30);
+        $lookahead = config('pieceworks.tenure_lookahead_days', 30);
         $today = Carbon::today();
         $checked = 0;
 

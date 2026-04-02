@@ -1,0 +1,80 @@
+# ============================================================
+# PieceWorks — Apache / cPanel .htaccess
+# ============================================================
+#
+# Purpose:
+#   1. Proxy all requests to the Next.js standalone server
+#      running on localhost:3000 (via cPanel Node.js App).
+#   2. Serve _next/static assets directly with long-lived cache.
+#   3. Ensure deep / direct URLs (e.g. /workers/42) resolve
+#      correctly instead of returning Apache 404s.
+#
+# Deployment assumptions:
+#   - Host OS  : cPanel/WHM with Apache + mod_proxy + mod_rewrite
+#   - App type : Next.js standalone  (output: 'standalone')
+#   - Node port: 3000  (set in cPanel Node.js App or .env PORT)
+#   - Document root points at this public/ folder  OR  the
+#     standalone output directory containing this file.
+#
+# If mod_proxy is unavailable on your host, use the fallback
+# static-export section at the bottom instead.
+# ============================================================
+
+Options -Indexes -MultiViews
+RewriteEngine On
+
+# ── 1. Let Apache serve existing static files directly ────────────────────────
+#       This covers _next/static/, images, favicon, manifest, sw.js, etc.
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# ── 2. Forward everything else to the Node.js process ─────────────────────────
+RewriteRule ^(.*)$ http://127.0.0.1:3000/$1 [P,L]
+
+# ── 3. Cache headers for Next.js immutable assets ─────────────────────────────
+<IfModule mod_headers.c>
+    # Immutable hashed chunks — cache for 1 year
+    <FilesMatch "\.(js|css|woff2?|ttf|eot|svg|png|jpg|jpeg|gif|ico|webp)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+
+    # HTML and JSON should not be cached (dynamic)
+    <FilesMatch "\.(html|json)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+
+    # Security headers
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# ── 4. Compression ────────────────────────────────────────────────────────────
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css text/javascript
+    AddOutputFilterByType DEFLATE application/javascript application/json
+    AddOutputFilterByType DEFLATE font/woff2 image/svg+xml
+</IfModule>
+
+# ============================================================
+# FALLBACK: Static Export mode (output: 'export')
+# ============================================================
+# Uncomment the block below ONLY if you switch next.config
+# to  output: 'export'  and deploy the /out directory.
+# In that mode mod_proxy is not needed.
+#
+# <IfModule mod_rewrite.c>
+#     RewriteEngine On
+#     RewriteBase /
+#
+#     # Skip actual files and directories
+#     RewriteCond %{REQUEST_FILENAME} -f [OR]
+#     RewriteCond %{REQUEST_FILENAME} -d
+#     RewriteRule ^ - [L]
+#
+#     # Route all SPA paths to index.html
+#     RewriteRule ^ /index.html [L]
+# </IfModule>

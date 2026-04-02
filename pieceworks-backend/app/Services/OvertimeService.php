@@ -15,9 +15,9 @@ class OvertimeService
 
     public function __construct()
     {
-        $this->weeklyRegularHours = (int)   config('payroll.weekly_regular_hours', 48);
-        $this->shiftHours         = (int)   config('payroll.shift_hours', 8);
-        $this->otMultiplier       = (float) config('payroll.ot_multiplier', 1.0);
+        $this->weeklyRegularHours = (int)   config('pieceworks.weekly_regular_hours', 48);
+        $this->shiftHours         = (int)   config('pieceworks.shift_hours', 8);
+        $this->otMultiplier       = (float) config('pieceworks.ot_multiplier', 1.0);
     }
 
     // ── Public API ──────────────────────────────────────────────────────────
@@ -117,11 +117,11 @@ class OvertimeService
     {
         $date = $workDate instanceof Carbon ? $workDate : Carbon::parse($workDate);
 
-        $weeklyStandard = (float) config('payroll.shift_allowance_per_worker', 500.00);
-        $nightAllowance = (float) config('payroll.night_shift_allowance', 750.00);
-        $callInMin      = (int)   config('payroll.callin_min_hours', 4);
-        $callInThresh   = (int)   config('payroll.callin_threshold_hours', 4);
-        $minWeeklyWage  = (float) config('payroll.minimum_weekly_wage', 8_545.00);
+        $weeklyStandard = (float) config('pieceworks.shift_allowance_per_worker', 500.00);
+        $nightAllowance = (float) config('pieceworks.night_shift_allowance', 750.00);
+        $callInMin      = (int)   config('pieceworks.callin_min_hours', 4);
+        $callInThresh   = (int)   config('pieceworks.callin_threshold_hours', 4);
+        $minWeeklyWage  = (float) config('pieceworks.minimum_weekly_wage', 8_545.00);
 
         // Pro-rate per shift (1 of up to 6 regular shifts per week)
         $shiftAllowance = round($weeklyStandard / 6, 2);
@@ -158,7 +158,7 @@ class OvertimeService
 
     private function getGapHours(int $workerId, Carbon $date, string $actualShift): ?float
     {
-        $shiftTimes = config('payroll.shift_times');
+        $shiftTimes = config('pieceworks.shift_times');
         $lastRecord = DB::table('production_records')
             ->where('worker_id', $workerId)
             ->where(fn ($q) => $q

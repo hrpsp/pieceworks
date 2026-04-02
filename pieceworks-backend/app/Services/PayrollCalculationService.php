@@ -112,10 +112,10 @@ class PayrollCalculationService
         $shiftPenalties = (float) abs($records->where('shift_adjustment', '<', 0)->sum('shift_adjustment'));
 
         // ── 2. Shift allowance ──────────────────────────────────────────────
-        $shiftAllowance = (float) config('payroll.shift_allowance_per_worker', self::DEFAULT_SHIFT_ALLOWANCE);
+        $shiftAllowance = (float) config('pieceworks.shift_allowance_per_worker', self::DEFAULT_SHIFT_ALLOWANCE);
 
         // ── 3. Holiday pay — check every day in the work week ───────────────
-        $province   = config('payroll.default_province', 'punjab');
+        $province   = config('pieceworks.default_province', 'punjab');
         $holidayPay = 0.0;
         $cursor     = $startDate->copy();
         while ($cursor->lte($endDate)) {
@@ -429,7 +429,7 @@ class PayrollCalculationService
 
         // ── 3. Carry-forward alert (advance instalments > 3× 3-week avg) ───
         if ($carryForwardAmount > 0) {
-            $alertMultiplier = (float) config('payroll.carry_alert_multiplier', 3);
+            $alertMultiplier = (float) config('pieceworks.carry_alert_multiplier', 3);
             $recentAvgGross  = (float) (WorkerWeeklyPayroll::where('worker_id', $workerId)
                 ->where('payroll_run_id', '!=', $run->id)
                 ->orderByDesc('id')
@@ -451,7 +451,7 @@ class PayrollCalculationService
         }
 
         // ── 4. Per-advance HR alert when carried too long ───────────────────
-        $maxCarryWeeks = (int) config('payroll.advance_max_carry_weeks', 2);
+        $maxCarryWeeks = (int) config('pieceworks.advance_max_carry_weeks', 2);
         foreach ($advanceUpdates as $u) {
             if ($u['carried'] > 0 && $u['new_carried'] >= $maxCarryWeeks) {
                 PayrollException::create($base + [

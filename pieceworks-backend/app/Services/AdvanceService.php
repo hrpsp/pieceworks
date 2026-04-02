@@ -17,8 +17,8 @@ class AdvanceService
 
     public function __construct()
     {
-        $this->autoApproveLimit = (float) config('payroll.advance_auto_approve_limit', 2_000.00);
-        $this->maxCarryWeeks    = (int)   config('payroll.advance_max_carry_weeks', 2);
+        $this->autoApproveLimit = (float) config('pieceworks.advance_auto_approve_limit', 2_000.00);
+        $this->maxCarryWeeks    = (int)   config('pieceworks.advance_max_carry_weeks', 2);
     }
 
     // ── Public API ──────────────────────────────────────────────────────────
