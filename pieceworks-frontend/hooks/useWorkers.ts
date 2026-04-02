@@ -9,19 +9,19 @@ export interface Worker {
   name: string;
   cnic: string;
   biometric_id: string | null;
-  worker_type: 'direct' | 'contractor';
+  worker_type: 'direct' | 'contractor' | 'bata_direct' | 'seasonal' | 'trainee';
   grade: string;
-  default_shift: 'morning' | 'evening' | 'night';
+  default_shift: 'morning' | 'afternoon' | 'night';
   default_line_id: number | null;
   training_period: number;
   training_end_date: string | null;
-  payment_method: 'cash' | 'bank' | 'easypaisa' | 'jazzcash';
+  payment_method: 'cash' | 'bank_transfer' | 'easypaisa' | 'jazzcash';
   payment_number: string | null;
   whatsapp: string | null;
   eobi_number: string | null;
   pessi_number: string | null;
   join_date: string;
-  status: 'active' | 'inactive' | 'terminated';
+  status: 'active' | 'inactive' | 'terminated' | 'seasonal_off';
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -31,8 +31,9 @@ export interface Worker {
 
 export interface WorkerFilters {
   contractor_id?: number;
-  status?: 'active' | 'inactive' | 'terminated';
-  shift?: 'morning' | 'evening' | 'night';
+  status?: 'active' | 'inactive' | 'terminated' | 'seasonal_off';
+  shift?: 'morning' | 'afternoon' | 'night';
+  grade?: string;
   search?: string;
   page?: number;
   per_page?: number;
@@ -102,17 +103,19 @@ export function useWorker(id: number | null | undefined) {
 // ── Create worker ─────────────────────────────────────────────────────────────
 
 export interface CreateWorkerPayload {
-  name:            string;
-  cnic:            string;
-  grade:           string;
-  default_shift:   'morning' | 'evening' | 'night';
-  join_date:       string;
-  worker_type:     'direct' | 'contractor';
-  contractor_id?:  number | null;
-  payment_method:  'cash' | 'bank' | 'easypaisa' | 'jazzcash';
-  payment_number?: string;
-  whatsapp?:       string;
-  status:          'active' | 'inactive';
+  name:              string;
+  cnic:              string;
+  grade:             'junior' | 'standard' | 'senior' | 'master';
+  default_shift:     'morning' | 'afternoon' | 'night';
+  join_date:         string;
+  worker_type:       'bata_direct' | 'contractor' | 'seasonal' | 'trainee';
+  contractor_id?:    number | null;
+  payment_method:    'cash' | 'bank_transfer' | 'easypaisa' | 'jazzcash';
+  payment_number?:   string;
+  whatsapp?:         string;
+  status:            'active' | 'inactive';
+  factory_location_id?: number;
+  default_line_id?:  number | null;
 }
 
 export function useCreateWorker() {
@@ -214,6 +217,58 @@ export function useWorkerShiftAdjustments(id: number) {
       apiClient.get<{ data: ShiftAdjustment[] }>(
         `/workers/${id}/shift-adjustments`
       ),
+    enabled: id > 0,
+  });
+}
+
+// ── Loan types and hook ───────────────────────────────────────────────────────
+
+export interface WorkerLoan {
+  id:                  number;
+  worker_id:           number;
+  amount:              string;
+  weekly_emi:          string;
+  disbursed_by:        number;
+  disbursed_at:        string;
+  outstanding_balance: string;
+  total_weeks:         number;
+  weeks_paid:          number;
+  status:              'active' | 'paid' | 'defaulted';
+  notes:               string | null;
+  created_at:          string;
+  updated_at:          string;
+}
+
+export function useWorkerLoans(id: number) {
+  return useQuery({
+    queryKey: ['workers', id, 'loans'],
+    queryFn:  () =>
+      apiClient.get<{ data: WorkerLoan[] }>(`/workers/${id}/loans`),
+    enabled: id > 0,
+  });
+}
+
+// ── Compliance types and hook ─────────────────────────────────────────────────
+
+export interface WorkerCompliance {
+  id:                   number;
+  worker_id:            number;
+  eobi_number:          string | null;
+  pessi_number:         string | null;
+  eobi_registered_at:   string | null;
+  pessi_registered_at:  string | null;
+  ntn_number:           string | null;
+  tax_status:           'exempt' | 'applicable' | 'filer' | 'non_filer' | null;
+  wht_applicable:       boolean;
+  created_at:           string;
+  updated_at:           string;
+}
+
+export function useWorkerCompliance(id: number) {
+  return useQuery({
+    queryKey: ['workers', id, 'compliance'],
+    queryFn:  () =>
+      apiClient.get<ApiEnvelope<WorkerCompliance>>(`/workers/${id}/compliance`),
     enabled: id > 0,
   });
 }

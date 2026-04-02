@@ -5,14 +5,21 @@ import { Button }       from '@/components/ui/button';
 import { ChevronLeft }  from 'lucide-react';
 import {
   Factory, TrendingUp, ShieldCheck, Building2, Users, Award,
+  DollarSign, BarChart2, Clock, AlertTriangle, XCircle, FileText,
 } from 'lucide-react';
 
-import { DailyProductionReport }     from '@/components/reports/DailyProductionReport';
-import { WorkerEfficiencyReport }    from '@/components/reports/WorkerEfficiencyReport';
-import { MinWageComplianceReport }   from '@/components/reports/MinWageComplianceReport';
-import { EOBIChallaniReport }        from '@/components/reports/EOBIChallaniReport';
-import { ContractorPerformanceReport } from '@/components/reports/ContractorPerformanceReport';
-import { TenureMilestoneReport }     from '@/components/reports/TenureMilestoneReport';
+import { DailyProductionReport }        from '@/components/reports/DailyProductionReport';
+import { WorkerEfficiencyReport }       from '@/components/reports/WorkerEfficiencyReport';
+import { MinWageComplianceReport }      from '@/components/reports/MinWageComplianceReport';
+import { EOBIChallaniReport }           from '@/components/reports/EOBIChallaniReport';
+import { ContractorPerformanceReport }  from '@/components/reports/ContractorPerformanceReport';
+import { TenureMilestoneReport }        from '@/components/reports/TenureMilestoneReport';
+import { WageCostPerPairReport }        from '@/components/reports/WageCostPerPairReport';
+import { LineProductivityReport }       from '@/components/reports/LineProductivityReport';
+import { ShiftAdjustmentsReport }       from '@/components/reports/ShiftAdjustmentsReport';
+import { GhostWorkerReport }            from '@/components/reports/GhostWorkerReport';
+import { RejectionAnalysisReport }      from '@/components/reports/RejectionAnalysisReport';
+import { AnnualPayrollSummaryReport }   from '@/components/reports/AnnualPayrollSummaryReport';
 
 // ── Report registry ───────────────────────────────────────────────────────────
 
@@ -59,6 +66,42 @@ const REGISTRY: Record<string, ReportConfig> = {
     description: 'Workers reaching IRRA or long-service thresholds within 30 days',
     icon:        Award,
     component:   TenureMilestoneReport,
+  },
+  'wage-cost-per-pair': {
+    title:       'Wage Cost Per Pair',
+    description: 'Total wage cost breakdown per pair produced by line, contractor, and task',
+    icon:        DollarSign,
+    component:   WageCostPerPairReport,
+  },
+  'line-productivity': {
+    title:       'Line Productivity',
+    description: 'Output, efficiency, and capacity utilisation per production line',
+    icon:        BarChart2,
+    component:   LineProductivityReport,
+  },
+  'shift-adjustments': {
+    title:       'Shift Adjustments',
+    description: 'Confirmed and pending shift changes with overtime flags and authorisation status',
+    icon:        Clock,
+    component:   ShiftAdjustmentsReport,
+  },
+  'ghost-worker': {
+    title:       'Ghost Worker Report',
+    description: 'Production anomaly and biometric mismatch flags for fraud risk assessment',
+    icon:        AlertTriangle,
+    component:   GhostWorkerReport,
+  },
+  'rejection-analysis': {
+    title:       'Rejection Analysis',
+    description: 'QC rejection rates by worker, line, and defect type with penalty breakdown',
+    icon:        XCircle,
+    component:   RejectionAnalysisReport,
+  },
+  'annual-payroll-summary': {
+    title:       'Annual Payroll Summary',
+    description: 'Full-year gross earnings, deductions, and net pay aggregates by worker and contractor',
+    icon:        FileText,
+    component:   AnnualPayrollSummaryReport,
   },
 };
 

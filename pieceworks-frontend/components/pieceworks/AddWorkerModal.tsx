@@ -27,14 +27,14 @@ interface Props {
 const EMPTY = {
   name:           '',
   cnic:           '',
-  grade:          'A',
-  default_shift:  'morning' as const,
+  grade:          'junior'      as 'junior' | 'standard' | 'senior' | 'master',
+  default_shift:  'morning'     as 'morning' | 'afternoon' | 'night',
   join_date:      new Date().toISOString().split('T')[0],
-  worker_type:    'direct'  as const,
-  payment_method: 'cash'    as const,
+  worker_type:    'bata_direct' as 'bata_direct' | 'contractor' | 'seasonal' | 'trainee',
+  payment_method: 'cash'        as 'cash' | 'bank_transfer' | 'easypaisa' | 'jazzcash',
   payment_number: '',
   whatsapp:       '',
-  status:         'active'  as const,
+  status:         'active'      as 'active' | 'inactive',
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -123,9 +123,10 @@ export function AddWorkerModal({ open, onClose }: Props) {
               <Select value={form.grade} onValueChange={v => set('grade', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="A">Grade A</SelectItem>
-                  <SelectItem value="B">Grade B</SelectItem>
-                  <SelectItem value="C">Grade C</SelectItem>
+                  <SelectItem value="junior">Junior</SelectItem>
+                  <SelectItem value="standard">Standard</SelectItem>
+                  <SelectItem value="senior">Senior</SelectItem>
+                  <SelectItem value="master">Master</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -135,7 +136,7 @@ export function AddWorkerModal({ open, onClose }: Props) {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="morning">Morning</SelectItem>
-                  <SelectItem value="evening">Evening</SelectItem>
+                  <SelectItem value="afternoon">Afternoon</SelectItem>
                   <SelectItem value="night">Night</SelectItem>
                 </SelectContent>
               </Select>
@@ -149,8 +150,10 @@ export function AddWorkerModal({ open, onClose }: Props) {
               <Select value={form.worker_type} onValueChange={v => set('worker_type', v as typeof form.worker_type)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="direct">Direct</SelectItem>
+                  <SelectItem value="bata_direct">Bata Direct</SelectItem>
                   <SelectItem value="contractor">Contractor</SelectItem>
+                  <SelectItem value="seasonal">Seasonal</SelectItem>
+                  <SelectItem value="trainee">Trainee</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -185,7 +188,7 @@ export function AddWorkerModal({ open, onClose }: Props) {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="bank">Bank Transfer</SelectItem>
+                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
                   <SelectItem value="easypaisa">Easypaisa</SelectItem>
                   <SelectItem value="jazzcash">JazzCash</SelectItem>
                 </SelectContent>

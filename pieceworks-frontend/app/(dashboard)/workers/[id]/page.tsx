@@ -7,6 +7,8 @@ import {
   useWorkerStatement,
   useWorkerAdvances,
   useWorkerShiftAdjustments,
+  useWorkerLoans,
+  useWorkerCompliance,
 } from '@/hooks/useWorkers';
 import { formatPKR }    from '@/lib/formatters';
 import { apiClient }    from '@/lib/api-client';
@@ -20,6 +22,7 @@ import {
 import {
   ChevronLeft, User, Banknote, Phone, Calendar,
   CheckCircle2, Clock, XCircle, FileText, MessageCircle, Loader2,
+  CreditCard, ShieldCheck,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -58,6 +61,8 @@ export default function WorkerDetailPage({ params }: { params: { id: string } })
   const statement  = useWorkerStatement(workerId, weekRef);
   const advances   = useWorkerAdvances(workerId);
   const shifts     = useWorkerShiftAdjustments(workerId);
+  const loans      = useWorkerLoans(workerId);
+  const compliance = useWorkerCompliance(workerId);
 
   // Statement actions
   const [genLoading, setGenLoading] = useState(false);
@@ -115,10 +120,12 @@ export default function WorkerDetailPage({ params }: { params: { id: string } })
     worker.status === 'inactive' ? 'bg-amber-100 text-amber-700' :
     'bg-red-100 text-red-700';
 
-  const stmt      = statement.data?.data;
-  const prodRows  = production.data?.data ?? [];
-  const advRows   = advances.data?.data   ?? [];
-  const shiftRows = shifts.data?.data     ?? [];
+  const stmt        = statement.data?.data;
+  const prodRows    = production.data?.data ?? [];
+  const advRows     = advances.data?.data   ?? [];
+  const shiftRows   = shifts.data?.data     ?? [];
+  const loanRows    = loans.data?.data      ?? [];
+  const comp        = compliance.data?.data ?? null;
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
@@ -201,6 +208,12 @@ export default function WorkerDetailPage({ params }: { params: { id: string } })
           <TabsTrigger value="statement">Statement</TabsTrigger>
           <TabsTrigger value="advances">Advances</TabsTrigger>
           <TabsTrigger value="shifts">Shift Adjustments</TabsTrigger>
+          <TabsTrigger value="loans" className="flex items-center gap-1.5">
+            <CreditCard size={13}/> Loans
+          </TabsTrigger>
+          <TabsTrigger value="compliance" className="flex items-center gap-1.5">
+            <ShieldCheck size={13}/> Compliance
+          </TabsTrigger>
         </TabsList>
 
         {/* Production history */}
@@ -415,6 +428,108 @@ export default function WorkerDetailPage({ params }: { params: { id: string } })
             )}
           </div>
         </TabsContent>
+
+        {/* Loans */}
+        <TabsContent value="loans" className="mt-4">
+          <div className="bg-card rounded-xl border border-border overflow-hidden">
+            {loans.isPending ? (
+              <TableSkeleton cols={6} rows={4}/>
+            ) : loanRows.length === 0 ? (
+              <EmptyState message="No loans on record for this worker."/>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/50">
+                    {['Amount', 'Weekly EMI', 'Outstanding', 'Weeks Paid', 'Total Weeks', 'Status'].map(h => (
+                      <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {loanRows.map(loan => {
+                    const pct = loan.total_weeks > 0
+                      ? Math.round((loan.weeks_paid / loan.total_weeks) * 100)
+                      : 0;
+                    return (
+                      <tr key={loan.id} className="border-b border-border last:border-0 hover:bg-muted/20">
+                        <td className="px-4 py-2.5 font-medium">{formatPKR(Number(loan.amount))}</td>
+                        <td className="px-4 py-2.5 text-muted-foreground">{formatPKR(Number(loan.weekly_emi))}</td>
+                        <td className="px-4 py-2.5 font-medium text-amber-600">{formatPKR(Number(loan.outstanding_balance))}</td>
+                        <td className="px-4 py-2.5">
+                          <span className="flex items-center gap-2">
+                            <span>{loan.weeks_paid} / {loan.total_weeks}</span>
+                            <span className="text-xs text-muted-foreground">({pct}%)</span>
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-muted-foreground">{loan.total_weeks}</td>
+                        <td className="px-4 py-2.5">
+                          <Badge className={`text-xs border-0 capitalize ${
+                            loan.status === 'paid'     ? 'bg-green-100 text-green-700' :
+                            loan.status === 'active'   ? 'bg-blue-100 text-blue-700'  :
+                            'bg-red-100 text-red-700'
+                          }`}>
+                            {loan.status}
+                          </Badge>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Compliance */}
+        <TabsContent value="compliance" className="mt-4">
+          <div className="bg-card rounded-xl border border-border p-6">
+            {compliance.isPending ? (
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-8 w-full rounded"/>)}
+              </div>
+            ) : !comp ? (
+              <EmptyState message="No compliance record found for this worker."/>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-5">
+                {/* EOBI */}
+                <ComplianceField
+                  label="EOBI Number"
+                  value={comp.eobi_number}
+                  registeredAt={comp.eobi_registered_at}
+                  missingWarning="EOBI not registered — payroll exception will be raised"
+                />
+                {/* PESSI */}
+                <ComplianceField
+                  label="PESSI Number"
+                  value={comp.pessi_number}
+                  registeredAt={comp.pessi_registered_at}
+                  missingWarning="PESSI not registered"
+                />
+                {/* NTN */}
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">NTN Number</p>
+                  <p className="font-mono text-sm font-medium text-foreground">{comp.ntn_number ?? '—'}</p>
+                </div>
+                {/* Tax status */}
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tax Status</p>
+                  <Badge className={`text-xs border-0 capitalize ${
+                    comp.tax_status === 'exempt' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {comp.tax_status ?? 'unknown'}
+                  </Badge>
+                </div>
+                {/* WHT */}
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">WHT Applicable</p>
+                  <Badge className={`text-xs border-0 ${comp.wht_applicable ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                    {comp.wht_applicable ? 'Yes — withholding tax applies' : 'No'}
+                  </Badge>
+                </div>
+              </div>
+            )}
+          </div>
+        </TabsContent>
       </Tabs>
     </div>
   );
@@ -462,5 +577,38 @@ function TableSkeleton({ cols, rows }: { cols: number; rows: number }) {
 function EmptyState({ message }: { message: string }) {
   return (
     <div className="px-4 py-10 text-center text-muted-foreground text-sm">{message}</div>
+  );
+}
+
+function ComplianceField({
+  label, value, registeredAt, missingWarning,
+}: {
+  label: string;
+  value: string | null;
+  registeredAt: string | null;
+  missingWarning: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      {value ? (
+        <>
+          <p className="font-mono text-sm font-medium text-foreground flex items-center gap-2">
+            <CheckCircle2 size={13} className="text-green-600 shrink-0"/>
+            {value}
+          </p>
+          {registeredAt && (
+            <p className="text-xs text-muted-foreground">
+              Registered: {new Date(registeredAt).toLocaleDateString()}
+            </p>
+          )}
+        </>
+      ) : (
+        <p className="text-sm text-amber-600 flex items-center gap-2">
+          <XCircle size={13} className="shrink-0"/>
+          {missingWarning}
+        </p>
+      )}
+    </div>
   );
 }
