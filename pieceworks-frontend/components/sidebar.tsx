@@ -11,6 +11,8 @@ import {
   Building2,
   CreditCard,
   BarChart2,
+  ArrowRightLeft,
+  Settings2,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -19,13 +21,15 @@ import { cn } from '@/lib/utils';
 import { clearToken } from '@/lib/api-client';
 
 const NAV_ITEMS = [
-  { href: '/dashboard',   label: 'Dashboard',   icon: LayoutDashboard },
-  { href: '/workers',     label: 'Workers',     icon: Users },
-  { href: '/production',  label: 'Production',  icon: ClipboardList },
-  { href: '/payroll',     label: 'Payroll',     icon: Wallet },
-  { href: '/contractor',  label: 'Contractors', icon: Building2 },
-  { href: '/rate-cards',  label: 'Rate Cards',  icon: CreditCard },
-  { href: '/reports',     label: 'Reports',     icon: BarChart2 },
+  { href: '/dashboard',    label: 'Dashboard',    icon: LayoutDashboard },
+  { href: '/workers',      label: 'Workers',      icon: Users },
+  { href: '/production',   label: 'Production',   icon: ClipboardList },
+  { href: '/payroll',      label: 'Payroll',      icon: Wallet },
+  { href: '/contractor',   label: 'Contractors',  icon: Building2 },
+  { href: '/rate-cards',   label: 'Rate Cards',   icon: CreditCard },
+  { href: '/reports',      label: 'Reports',      icon: BarChart2 },
+  { href: '/integration',  label: 'Integration',  icon: ArrowRightLeft },
+  { href: '/settings',     label: 'Settings',     icon: Settings2 },
 ];
 
 const COLLAPSED_KEY = 'pw_sidebar_collapsed';
