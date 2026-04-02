@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('style_code', 50)->unique()->comment('Unique style/SKU identifier, e.g. NK-AIR-001');
             $table->string('style_name');
-            $table->enum('complexity_tier', ['standard', 'medium', 'complex'])->default('standard');
+            $table->enum('complexity_tier', ['simple', 'standard', 'complex', 'premium'])->default('standard');
             $table->timestamps();
         });
     }

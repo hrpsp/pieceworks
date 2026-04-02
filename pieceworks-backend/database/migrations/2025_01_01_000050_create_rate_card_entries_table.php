@@ -14,8 +14,8 @@ return new class extends Migration
                   ->constrained('rate_cards')
                   ->cascadeOnDelete();
             $table->string('task')->comment('e.g. Stitching, Lasting, Sole Attaching');
-            $table->enum('complexity_tier', ['standard', 'medium', 'complex']);
-            $table->enum('worker_grade', ['A', 'B', 'C', 'D', 'trainee']);
+            $table->enum('complexity_tier', ['simple', 'standard', 'complex', 'premium']);
+            $table->enum('worker_grade', ['junior', 'senior']);
             $table->decimal('rate_pkr', 10, 2)->comment('Rate in Pakistani Rupees per piece');
             $table->timestamps();
 
