@@ -13,8 +13,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Bearer-token API: only ForceJsonResponse needed.
+        // EnsureFrontendRequestsAreStateful is intentionally excluded —
+        // it adds CSRF protection suited to cookie-based SPAs, which conflicts
+        // with this app's stateless Bearer-token authentication.
         $middleware->api(prepend: [
-            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             \App\Http\Middleware\ForceJsonResponse::class,
         ]);
 
