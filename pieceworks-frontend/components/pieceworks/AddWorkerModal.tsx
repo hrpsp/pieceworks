@@ -1,10 +1,11 @@
 'use client';
 
-import { useState }        from 'react';
-import { useCreateWorker } from '@/hooks/useWorkers';
-import { Button }          from '@/components/ui/button';
-import { Input }           from '@/components/ui/input';
-import { Label }           from '@/components/ui/label';
+import { useState }            from 'react';
+import { useCreateWorker }     from '@/hooks/useWorkers';
+import { useContractorsList }  from '@/hooks/useContractor';
+import { Button }              from '@/components/ui/button';
+import { Input }               from '@/components/ui/input';
+import { Label }               from '@/components/ui/label';
 import {
   Dialog, DialogContent, DialogHeader,
   DialogTitle, DialogFooter,
@@ -31,6 +32,7 @@ const EMPTY = {
   default_shift:  'morning'     as 'morning' | 'afternoon' | 'night',
   join_date:      new Date().toISOString().split('T')[0],
   worker_type:    'bata_direct' as 'bata_direct' | 'contractor' | 'seasonal' | 'trainee',
+  contractor_id:  '' as string,   // stored as string for Select; cast to number on submit
   payment_method: 'cash'        as 'cash' | 'bank_transfer' | 'easypaisa' | 'jazzcash',
   payment_number: '',
   whatsapp:       '',
@@ -42,19 +44,30 @@ const EMPTY = {
 export function AddWorkerModal({ open, onClose }: Props) {
   const [form,  setForm]  = useState({ ...EMPTY });
   const [error, setError] = useState('');
-  const create = useCreateWorker();
 
-  function set(field: keyof typeof EMPTY, value: string) {
+  const create      = useCreateWorker();
+  const contractors = useContractorsList('active');
+
+  const isContractorType = form.worker_type === 'contractor';
+
+  function set<K extends keyof typeof EMPTY>(field: K, value: typeof EMPTY[K]) {
     setForm(prev => ({ ...prev, [field]: value }));
+  }
+
+  // Reset contractor_id whenever worker type changes away from 'contractor'
+  function setWorkerType(v: typeof EMPTY['worker_type']) {
+    setForm(prev => ({ ...prev, worker_type: v, contractor_id: '' }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
 
-    if (!form.name.trim())      return setError('Name is required.');
-    if (!form.cnic.trim())      return setError('CNIC is required.');
-    if (!form.join_date)        return setError('Joining date is required.');
+    if (!form.name.trim())   return setError('Full name is required.');
+    if (!form.cnic.trim())   return setError('CNIC is required.');
+    if (!form.join_date)     return setError('Joining date is required.');
+    if (isContractorType && !form.contractor_id)
+      return setError('Please select a contractor for this worker.');
 
     try {
       await create.mutateAsync({
@@ -64,6 +77,9 @@ export function AddWorkerModal({ open, onClose }: Props) {
         default_shift:  form.default_shift,
         join_date:      form.join_date,
         worker_type:    form.worker_type,
+        contractor_id:  isContractorType && form.contractor_id
+                          ? Number(form.contractor_id)
+                          : null,
         payment_method: form.payment_method,
         payment_number: form.payment_number || undefined,
         whatsapp:       form.whatsapp       || undefined,
@@ -87,7 +103,7 @@ export function AddWorkerModal({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Worker</DialogTitle>
         </DialogHeader>
@@ -120,7 +136,7 @@ export function AddWorkerModal({ open, onClose }: Props) {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Grade <span className="text-red-500">*</span></Label>
-              <Select value={form.grade} onValueChange={v => set('grade', v)}>
+              <Select value={form.grade} onValueChange={v => set('grade', v as typeof form.grade)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="junior">Junior</SelectItem>
@@ -147,7 +163,7 @@ export function AddWorkerModal({ open, onClose }: Props) {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Worker Type</Label>
-              <Select value={form.worker_type} onValueChange={v => set('worker_type', v as typeof form.worker_type)}>
+              <Select value={form.worker_type} onValueChange={v => setWorkerType(v as typeof form.worker_type)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="bata_direct">Bata Direct</SelectItem>
@@ -168,6 +184,41 @@ export function AddWorkerModal({ open, onClose }: Props) {
               </Select>
             </div>
           </div>
+
+          {/* Contractor selector — shown only when worker_type = 'contractor' */}
+          {isContractorType && (
+            <div className="space-y-1.5">
+              <Label>
+                Contractor <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={form.contractor_id}
+                onValueChange={v => set('contractor_id', v)}
+                disabled={contractors.isPending}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={
+                    contractors.isPending ? 'Loading contractors…' : 'Select contractor'
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  {(contractors.data?.data ?? []).map(c => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                  {!contractors.isPending && (contractors.data?.data ?? []).length === 0 && (
+                    <SelectItem value="_none" disabled>
+                      No active contractors found
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Only active contractors are listed. Add contractors from the Settings page.
+              </p>
+            </div>
+          )}
 
           {/* Joining Date */}
           <div className="space-y-1.5">

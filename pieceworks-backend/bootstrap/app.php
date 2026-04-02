@@ -26,10 +26,20 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withSchedule(function (Schedule $schedule) {
+        // ── Every 30 minutes ────────────────────────────────────────────────
         $schedule->command('bata:sync')->everyThirtyMinutes();
-        $schedule->job(new \App\Jobs\TriggerWeeklyPayrollRun)->weekly()->sundays()->at('22:00');
+
+        // ── Daily at 09:00 ────────────────────────────────────────────────────
         $schedule->job(new \App\Jobs\CheckTenureMilestonesJob)->dailyAt('09:00');
         $schedule->job(new \App\Jobs\CheckContractorExpiryJob)->dailyAt('09:00');
+
+        // ── Weekly payroll automation (Sunday night) ──────────────────────────
+        // 22:00 — create the new payroll run and trigger calculation
+        $schedule->job(new \App\Jobs\TriggerWeeklyPayrollRun)->weekly()->sundays()->at('22:00');
+        // 22:15 — generate PDF/text statements for all workers in the locked run
+        $schedule->job(new \App\Jobs\GenerateAllStatementsJob)->weekly()->sundays()->at('22:15');
+        // 22:45 — send generated statements via WhatsApp
+        $schedule->job(new \App\Jobs\SendAllStatementsJob)->weekly()->sundays()->at('22:45');
     })
     ->withExceptions(function (Exceptions $exceptions) {
         // Return JSON for unauthenticated API requests instead of a redirect

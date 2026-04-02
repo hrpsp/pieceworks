@@ -4,6 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\CalculatePayrollRequest;
 use App\Http\Requests\ResolveExceptionRequest;
+use App\Jobs\GenerateAllStatementsJob;
+use App\Jobs\GeneratePaymentFilesJob;
+use App\Jobs\SendAllStatementsJob;
+use App\Jobs\SendPayEdgeHandoffJob;
 use App\Models\PayEdgeHandoffLog;
 use App\Models\PayrollException;
 use App\Models\PayrollReversal;
@@ -184,6 +188,15 @@ class PayrollController extends Controller
             'released_at' => now(),
             'released_by' => $request->user()->id,
         ]);
+
+        // ── Dispatch post-release background jobs ────────────────────────────
+        // Generate payment files (JazzCash, bank transfer, cash list)
+        GeneratePaymentFilesJob::dispatch($run->id);
+        // Generate worker statements (PDF/text), then send via WhatsApp
+        GenerateAllStatementsJob::dispatch();
+        SendAllStatementsJob::dispatch($run->id)->delay(now()->addMinutes(15));
+        // Send payroll data to PayEdge for HRMS reconciliation
+        SendPayEdgeHandoffJob::dispatch($run->id);
 
         return $this->success($run->fresh(['releaser:id,name']), 'Payroll released for payment');
     }
