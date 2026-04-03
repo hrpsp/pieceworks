@@ -253,18 +253,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('{id}',   [\App\Http\Controllers\Api\LineController::class, 'show'])->middleware('permission:workers.view_all');
         Route::put('{id}',   [\App\Http\Controllers\Api\LineController::class, 'update'])->middleware('permission:workers.create');
     });
-});
 
-
-    // ── Admin (Sprint 13) ────────────────────────────────────────────────
+    // ── Admin ─────────────────────────────────────────────────────────────────────
     Route::prefix('admin')->group(function () {
-        Route::get('users',               [AdminController::class, 'listUsers']);
-        Route::post('users',              [AdminController::class, 'inviteUser']);
-        Route::get('factory-locations',   [AdminController::class, 'listLocations']);
-        Route::post('factory-locations',  [AdminController::class, 'createLocation']);
-        Route::get('compliance-config',   [AdminController::class, 'getComplianceConfig']);
-        Route::patch('compliance-config', [AdminController::class, 'patchComplianceConfig']);
+        Route::get('users',               [AdminController::class, 'listUsers'])->middleware('permission:workers.view_all');
+        Route::post('users',              [AdminController::class, 'inviteUser'])->middleware('permission:workers.create');
+        Route::get('factory-locations',   [AdminController::class, 'listLocations'])->middleware('permission:workers.view_all');
+        Route::post('factory-locations',  [AdminController::class, 'createLocation'])->middleware('permission:workers.create');
+        Route::get('compliance-config',   [AdminController::class, 'getComplianceConfig'])->middleware('permission:reports.view_all');
+        Route::patch('compliance-config', [AdminController::class, 'patchComplianceConfig'])->middleware('permission:workers.create');
     });
+});
 
 // ── Contractor Portal ─────────────────────────────────────────────────────────
 // Separate group: uses contractor.portal middleware instead of role-based permissions.

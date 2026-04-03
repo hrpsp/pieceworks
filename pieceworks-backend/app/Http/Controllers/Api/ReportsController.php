@@ -140,7 +140,8 @@ class ReportsController extends Controller
                 )
                 ->whereBetween('work_date', [$start->toDateString(), $end->toDateString()])
                 ->groupBy('worker_id')
-                ->pluck(null, 'worker_id')
+                ->get()
+                ->keyBy('worker_id')
                 ->map(fn ($s) => ['days_worked' => (int) $s->days_worked, 'total_pieces' => (int) $s->total_pieces]);
 
             $rows = $wwps->map(function ($wwp) use ($productionStats) {
