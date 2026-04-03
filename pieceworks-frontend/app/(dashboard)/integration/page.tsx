@@ -39,7 +39,7 @@ import {
   Clock, WifiOff, ArrowRightLeft, MapPin, Activity,
   ChevronRight, Loader2, CheckCheck, PauseCircle,
 } from 'lucide-react';
-import type { StagingStatus, SyncRunStatus } from '@/types/pieceworks';
+import type { SyncRunStatus } from '@/types/pieceworks';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -82,16 +82,17 @@ function SyncBadge({ status }: { status: SyncRunStatus }) {
 
 // ── Staging status badge ──────────────────────────────────────────────────────
 
-const STAGING_BADGE: Record<StagingStatus, { label: string; cls: string }> = {
-  pending:        { label: 'Pending',        cls: 'bg-amber-50  text-amber-700  border-amber-200' },
-  accepted:       { label: 'Accepted',       cls: 'bg-green-50  text-green-700  border-green-200' },
-  held:           { label: 'Held',           cls: 'bg-slate-100 text-slate-600  border-slate-200' },
-  conflicted:     { label: 'Conflicted',     cls: 'bg-red-50    text-red-700    border-red-200'   },
-  manual_entered: { label: 'Manual',         cls: 'bg-purple-50 text-purple-700 border-purple-200'},
+// Keyed by actual validation_status values from bata_api_staging table
+const STAGING_BADGE: Record<string, { label: string; cls: string }> = {
+  clean:    { label: 'Clean',    cls: 'bg-green-50  text-green-700  border-green-200' },
+  warning:  { label: 'Warning',  cls: 'bg-amber-50  text-amber-700  border-amber-200' },
+  error:    { label: 'Error',    cls: 'bg-red-50    text-red-700    border-red-200'   },
+  held:     { label: 'Held',     cls: 'bg-slate-100 text-slate-600  border-slate-200' },
+  mapped:   { label: 'Mapped',   cls: 'bg-purple-50 text-purple-700 border-purple-200'},
 };
 
-function StagingBadge({ status }: { status: StagingStatus }) {
-  const cfg = STAGING_BADGE[status] ?? { label: status, cls: 'bg-slate-100 text-slate-500 border-slate-200' };
+function StagingBadge({ status }: { status: string }) {
+  const cfg = STAGING_BADGE[status] ?? { label: status ?? '—', cls: 'bg-slate-100 text-slate-500 border-slate-200' };
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${cfg.cls}`}>
       {cfg.label}
@@ -368,11 +369,11 @@ export default function IntegrationPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="accepted">Accepted</SelectItem>
+                <SelectItem value="clean">Clean</SelectItem>
+                <SelectItem value="warning">Warning</SelectItem>
+                <SelectItem value="error">Error</SelectItem>
                 <SelectItem value="held">Held</SelectItem>
-                <SelectItem value="conflicted">Conflicted</SelectItem>
-                <SelectItem value="manual_entered">Manual</SelectItem>
+                <SelectItem value="mapped">Mapped</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -402,18 +403,18 @@ export default function IntegrationPage() {
                       ))}
                     </tr>
                   ))
-                ) : (staging.data?.data ?? []).length === 0 ? (
+                ) : ((staging.data as any)?.data?.data ?? []).length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">
                       No staging records found for {fmtDate(stagingDate)}.
                     </td>
                   </tr>
                 ) : (
-                  (staging.data?.data ?? []).map(rec => (
+                  ((staging.data as any)?.data?.data ?? []).map(rec => (
                     <tr key={rec.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{rec.bata_worker_id}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{(rec as any).external_worker_id ?? rec.bata_worker_id ?? '—'}</td>
                       <td className="px-4 py-3 font-medium">
-                        {rec.worker ? rec.worker.name : (
+                        {(rec as any).worker ? (rec as any).worker.name : (
                           <span className="text-xs text-amber-600 flex items-center gap-1">
                             <WifiOff size={11} /> Unmapped
                           </span>
@@ -421,20 +422,22 @@ export default function IntegrationPage() {
                       </td>
                       <td className="px-4 py-3">
                         <span className="font-medium">{rec.style_code}</span>
-                        {rec.sku_code && <span className="ml-1 text-xs text-muted-foreground">{rec.sku_code}</span>}
+                        {(rec as any).sku_code && <span className="ml-1 text-xs text-muted-foreground">{(rec as any).sku_code}</span>}
                       </td>
-                      <td className="px-4 py-3 text-right font-medium">{rec.pairs_produced}</td>
+                      <td className="px-4 py-3 text-right font-medium">{(rec as any).pairs_completed ?? rec.pairs_produced ?? 0}</td>
                       <td className="px-4 py-3 capitalize text-muted-foreground text-xs">
-                        {rec.source_shift ?? '—'}
+                        {(rec as any).shift ?? rec.source_shift ?? '—'}
                       </td>
                       <td className="px-4 py-3">
-                        <StagingBadge status={rec.status} />
-                        {rec.conflict_reason && (
-                          <p className="text-xs text-red-600 mt-0.5">{rec.conflict_reason}</p>
+                        <StagingBadge status={(rec as any).validation_status ?? rec.status} />
+                        {(rec as any).validation_errors && (
+                          <p className="text-xs text-red-600 mt-0.5">
+                            {JSON.stringify((rec as any).validation_errors)}
+                          </p>
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        {rec.status === 'pending' || rec.status === 'conflicted' ? (
+                        {(['clean', 'warning', 'held'] as string[]).includes((rec as any).validation_status ?? rec.status) ? (
                           <div className="flex items-center gap-1">
                             <button
                               className="text-xs text-green-600 hover:text-green-700 font-medium flex items-center gap-0.5 disabled:opacity-50"
@@ -466,9 +469,9 @@ export default function IntegrationPage() {
           </div>
 
           {/* Pagination summary */}
-          {staging.data?.meta && (
+          {(staging.data as any)?.data?.total != null && (
             <p className="text-xs text-muted-foreground">
-              Showing {staging.data.data.length} of {staging.data.meta.total} records
+              Showing {((staging.data as any)?.data?.data ?? []).length} of {(staging.data as any)?.data?.total} records
             </p>
           )}
         </TabsContent>

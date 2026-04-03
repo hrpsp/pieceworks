@@ -8,33 +8,26 @@ import { Button }       from '@/components/ui/button';
 import { Input }        from '@/components/ui/input';
 import { Label }        from '@/components/ui/label';
 import { Skeleton }     from '@/components/ui/skeleton';
-import { Badge }        from '@/components/ui/badge';
 import { Download, AlertCircle } from 'lucide-react';
 import type { ApiEnvelope } from '@/lib/api-client';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface DailyProductionRow {
-  line:             string;
-  shift:            string;
-  pairs_produced:   number;
-  target:           number;
-  efficiency_pct:   number;
+  worker_id:    number;
+  worker_name:  string;
+  cnic:         string | null;
+  line:         string;
+  contractor:   string | null;
+  style_sku:    string | null;
+  tier:         string | null;
+  pieces:       number;
+  rate:         number;
+  earnings:     number;
+  work_date:    string;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function efficiencyBadge(pct: number) {
-  if (pct >= 100) return <Badge className="bg-green-100 text-green-700 border-0">{pct.toFixed(1)}%</Badge>;
-  if (pct >= 80)  return <Badge className="bg-amber-100 text-amber-700 border-0">{pct.toFixed(1)}%</Badge>;
-  return               <Badge className="bg-red-100 text-red-700 border-0">{pct.toFixed(1)}%</Badge>;
-}
-
-function rowBg(pct: number) {
-  if (pct >= 100) return 'border-green-200 bg-green-50/40';
-  if (pct >= 80)  return 'border-amber-200 bg-amber-50/40';
-  return               'border-red-200 bg-red-50/40';
-}
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -142,7 +135,7 @@ export function DailyProductionReport() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40">
-                {['Line', 'Shift', 'Pairs Produced', 'Target', 'Efficiency'].map(h => (
+                {['Worker', 'Line', 'Contractor', 'Pieces', 'Rate (₨)', 'Earnings (₨)'].map(h => (
                   <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     {h}
                   </th>
@@ -151,12 +144,13 @@ export function DailyProductionReport() {
             </thead>
             <tbody>
               {rows.map((row, i) => (
-                <tr key={i} className={`border-b last:border-0 ${rowBg(row.efficiency_pct)}`}>
-                  <td className="px-4 py-3 font-medium text-foreground">{row.line}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{row.shift}</td>
-                  <td className="px-4 py-3 font-mono text-right">{row.pairs_produced.toLocaleString()}</td>
-                  <td className="px-4 py-3 font-mono text-right text-muted-foreground">{row.target.toLocaleString()}</td>
-                  <td className="px-4 py-3">{efficiencyBadge(row.efficiency_pct)}</td>
+                <tr key={i} className="border-b last:border-0 hover:bg-muted/20">
+                  <td className="px-4 py-3 font-medium text-foreground">{row.worker_name ?? '—'}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{row.line ?? '—'}</td>
+                  <td className="px-4 py-3 text-muted-foreground text-xs">{row.contractor ?? '—'}</td>
+                  <td className="px-4 py-3 font-mono text-right">{(row.pieces ?? 0).toLocaleString()}</td>
+                  <td className="px-4 py-3 font-mono text-right text-muted-foreground">{(row.rate ?? 0).toLocaleString()}</td>
+                  <td className="px-4 py-3 font-mono text-right font-semibold">{(row.earnings ?? 0).toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
