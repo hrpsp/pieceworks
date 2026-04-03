@@ -197,6 +197,54 @@ class RateCardController extends Controller
         return $this->success($entries, 'Rate card entries retrieved.');
     }
 
+    // ── Add Entry ───────────────────────────────────────────────────────────
+
+    /**
+     * POST /api/rate-cards/{id}/entries
+     *
+     * Manually add a single rate entry to an existing rate card.
+     * Rejects duplicates (same task + tier + grade already on this card).
+     * Flushes the rate engine cache if the card is currently active.
+     */
+    public function addEntry(Request $request, int $id): JsonResponse
+    {
+        $card = RateCard::findOrFail($id);
+
+        $data = $request->validate([
+            'task'            => ['required', 'string', 'max:100'],
+            'complexity_tier' => ['required', 'in:standard,medium,complex'],
+            'worker_grade'    => ['required', 'in:A,B,C,D,trainee'],
+            'rate_pkr'        => ['required', 'numeric', 'min:0.01'],
+        ]);
+
+        // Reject duplicate combination on this card
+        $exists = $card->entries()
+            ->where('task',            $data['task'])
+            ->where('complexity_tier', $data['complexity_tier'])
+            ->where('worker_grade',    $data['worker_grade'])
+            ->exists();
+
+        if ($exists) {
+            return $this->error(
+                "A rate entry for task '{$data['task']}' / grade {$data['worker_grade']} / tier {$data['complexity_tier']} already exists on this rate card.",
+                422
+            );
+        }
+
+        $entry = $card->entries()->create([
+            'task'            => $data['task'],
+            'complexity_tier' => $data['complexity_tier'],
+            'worker_grade'    => $data['worker_grade'],
+            'rate_pkr'        => $data['rate_pkr'],
+        ]);
+
+        if ($card->is_active) {
+            RateEngineService::flushCache();
+        }
+
+        return $this->created($entry, "Rate entry added to rate card {$card->version}.");
+    }
+
     // ── Activate ────────────────────────────────────────────────────────────
 
     /**

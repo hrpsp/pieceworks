@@ -3,15 +3,15 @@
 import { useState, useEffect } from 'react';
 import {
   useRateCards, useActiveRateCard, useRateCardEntries,
-  useStyleSkus, usePatchSkuTier,
-  type ComplexityTier, type StyleSku,
+  useStyleSkus, usePatchSkuTier, useAddRateEntry,
+  type ComplexityTier, type StyleSku, type AddRateEntryPayload,
 } from '@/hooks/useRateCards';
 import { Badge }     from '@/components/ui/badge';
 import { Skeleton }  from '@/components/ui/skeleton';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { CreditCard, AlertCircle, CheckCircle2, Settings, Loader2, Search, X } from 'lucide-react';
+import { CreditCard, AlertCircle, CheckCircle2, Loader2, Search, X, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button }                      from '@/components/ui/button';
 import { PermissionGate, PERMISSIONS } from '@/lib/permissions';
@@ -46,12 +46,199 @@ const TIER_COLORS: Record<string, string> = {
 
 const TIER_OPTIONS: ComplexityTier[] = ['standard', 'complex', 'premium'];
 
+// ── Rate entry tier/grade options (must match backend validation) ──────────────
+const ENTRY_TIER_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'standard', label: 'Standard' },
+  { value: 'medium',   label: 'Medium'   },
+  { value: 'complex',  label: 'Complex'  },
+];
+
+const GRADE_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'A',       label: 'Grade A'       },
+  { value: 'B',       label: 'Grade B'       },
+  { value: 'C',       label: 'Grade C'       },
+  { value: 'D',       label: 'Grade D'       },
+  { value: 'trainee', label: 'Trainee'       },
+];
+
+// ── Add Rate Modal ────────────────────────────────────────────────────────────
+
+interface AddRateModalProps {
+  rateCardId: number;
+  cardVersion: string;
+  onClose: () => void;
+}
+
+function AddRateModal({ rateCardId, cardVersion, onClose }: AddRateModalProps) {
+  const addEntry = useAddRateEntry(rateCardId);
+
+  const [form, setForm] = useState<{
+    task: string;
+    worker_grade: string;
+    complexity_tier: string;
+    rate_pkr: string;
+  }>({
+    task:            '',
+    worker_grade:    'A',
+    complexity_tier: 'standard',
+    rate_pkr:        '',
+  });
+
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  function handleChange(field: string, value: string) {
+    setForm(f => ({ ...f, [field]: value }));
+    setApiError(null);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setApiError(null);
+
+    const rate = parseFloat(form.rate_pkr);
+    if (!form.task.trim())      return setApiError('Task name is required.');
+    if (isNaN(rate) || rate <= 0) return setApiError('Rate must be a positive number.');
+
+    addEntry.mutate(
+      {
+        task:            form.task.trim(),
+        worker_grade:    form.worker_grade as AddRateEntryPayload['worker_grade'],
+        complexity_tier: form.complexity_tier as AddRateEntryPayload['complexity_tier'],
+        rate_pkr:        rate,
+      },
+      {
+        onSuccess: () => onClose(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onError: (err: any) => {
+          setApiError(
+            err?.response?.data?.message ?? err?.message ?? 'Failed to add rate entry.'
+          );
+        },
+      }
+    );
+  }
+
+  return (
+    /* Backdrop */
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-card rounded-xl border border-border shadow-xl w-full max-w-md mx-4 overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div>
+            <h2 className="font-semibold text-foreground">Add Rate Entry</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Rate card {cardVersion}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X size={16}/>
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+
+          {/* Task */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">Task Name</label>
+            <Input
+              value={form.task}
+              onChange={e => handleChange('task', e.target.value)}
+              placeholder="e.g. Stitching, Lasting, Cementing…"
+              className="h-9 text-sm"
+              autoFocus
+            />
+          </div>
+
+          {/* Grade + Tier in a row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">Worker Grade</label>
+              <select
+                value={form.worker_grade}
+                onChange={e => handleChange('worker_grade', e.target.value)}
+                className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                {GRADE_OPTIONS.map(g => (
+                  <option key={g.value} value={g.value}>{g.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">Complexity Tier</label>
+              <select
+                value={form.complexity_tier}
+                onChange={e => handleChange('complexity_tier', e.target.value)}
+                className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                {ENTRY_TIER_OPTIONS.map(t => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Rate PKR */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">Rate (PKR per piece)</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₨</span>
+              <Input
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={form.rate_pkr}
+                onChange={e => handleChange('rate_pkr', e.target.value)}
+                placeholder="0.00"
+                className="h-9 pl-8 text-sm font-mono"
+              />
+            </div>
+          </div>
+
+          {/* Error */}
+          {apiError && (
+            <div className="flex items-start gap-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              <AlertCircle size={13} className="mt-0.5 shrink-0"/>
+              <span>{apiError}</span>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <Button type="button" variant="ghost" size="sm" onClick={onClose} disabled={addEntry.isPending}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              className="bg-brand-dark text-white hover:bg-brand-dark/90 gap-1.5"
+              disabled={addEntry.isPending}
+            >
+              {addEntry.isPending ? (
+                <><Loader2 size={13} className="animate-spin"/> Saving…</>
+              ) : (
+                <><Plus size={13}/> Add Entry</>
+              )}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function RateCardsPage() {
-  const [selectedId,  setSelectedId]  = useState<string>('');
-  const [activeTier,  setActiveTier]  = useState<string>('all');
-  const [taskSearch,  setTaskSearch]  = useState<string>('');
+  const [selectedId,    setSelectedId]    = useState<string>('');
+  const [activeTier,    setActiveTier]    = useState<string>('all');
+  const [taskSearch,    setTaskSearch]    = useState<string>('');
+  const [showAddRate,   setShowAddRate]   = useState<boolean>(false);
 
   const canManage = usePermission(PERMISSIONS.RATE_CARDS_MANAGE);
 
@@ -61,12 +248,17 @@ export default function RateCardsPage() {
   const skus       = useStyleSkus();
   const patchTier  = usePatchSkuTier();
 
-  // Auto-select the active rate card on load
+  // Auto-select: prefer the active rate card, fall back to the most recent one.
+  // Note: cardList is declared below — use rateCards.data directly here to avoid TDZ.
   useEffect(() => {
-    if (!selectedId && activeCard.data?.data?.id) {
-      setSelectedId(String(activeCard.data.data.id));
+    if (!selectedId) {
+      const activeId   = (activeCard.data as any)?.data?.id;
+      const list       = (rateCards.data as any)?.data ?? [];
+      const fallbackId = list[0]?.id;
+      const autoId     = activeId ?? fallbackId;
+      if (autoId) setSelectedId(String(autoId));
     }
-  }, [activeCard.data, selectedId]);
+  }, [activeCard.data, rateCards.data, selectedId]);
 
   const cardList   = rateCards.data?.data ?? [];
   const selectedCard = cardList.find(c => c.id === Number(selectedId));
@@ -111,7 +303,7 @@ export default function RateCardsPage() {
               <SelectContent>
                 {cardList.map(c => (
                   <SelectItem key={c.id} value={String(c.id)}>
-                    v{c.version} — {c.effective_date}
+                    {c.version.startsWith('v') ? c.version : `v${c.version}`} — {c.effective_date}
                     {c.is_active && ' ✓'}
                   </SelectItem>
                 ))}
@@ -123,8 +315,9 @@ export default function RateCardsPage() {
               variant="outline"
               className="gap-2 border-brand-dark text-brand-dark"
               disabled={!selectedId}
+              onClick={() => setShowAddRate(true)}
             >
-              <Settings size={14}/> Manage
+              <Plus size={14}/> Add Rate
             </Button>
           </PermissionGate>
         </div>
@@ -251,6 +444,15 @@ export default function RateCardsPage() {
             </table>
           </div>
         </div>
+      )}
+
+      {/* Add Rate Modal */}
+      {showAddRate && selectedId && selectedCard && (
+        <AddRateModal
+          rateCardId={Number(selectedId)}
+          cardVersion={selectedCard.version.startsWith('v') ? selectedCard.version : `v${selectedCard.version}`}
+          onClose={() => setShowAddRate(false)}
+        />
       )}
 
       {/* SKU tier assignments */}

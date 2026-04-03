@@ -76,6 +76,39 @@ export function useStyleSkus() {
   });
 }
 
+// ── Add rate entry ────────────────────────────────────────────────────────────
+
+export interface AddRateEntryPayload {
+  task:            string;
+  complexity_tier: 'standard' | 'medium' | 'complex';
+  worker_grade:    'A' | 'B' | 'C' | 'D' | 'trainee';
+  rate_pkr:        number;
+}
+
+/**
+ * POST /api/rate-cards/{id}/entries
+ *
+ * Manually add a single rate entry to an existing rate card.
+ * On success, invalidates the entries query for that card so the matrix refreshes.
+ */
+export function useAddRateEntry(rateCardId: number | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: AddRateEntryPayload) =>
+      apiClient.post<ApiEnvelope<RateCardEntry>>(
+        `/rate-cards/${rateCardId}/entries`,
+        payload
+      ),
+
+    onSuccess: () => {
+      if (rateCardId != null) {
+        queryClient.invalidateQueries({ queryKey: rateCardKeys.entries(rateCardId) });
+      }
+    },
+  });
+}
+
 /**
  * PATCH the complexity tier on a style SKU.
  * Uses optimistic update — reverts on error.
