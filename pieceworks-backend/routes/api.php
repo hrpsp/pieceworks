@@ -239,6 +239,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ── Contractors ──────────────────────────────────────────────────────────────
     Route::prefix('contractors')->group(function () {
+        Route::get('dashboard',                      [\App\Http\Controllers\Api\ContractorController::class, 'dashboard'])->middleware('permission:workers.view_all');
+        Route::get('settlement/{weekRef}',           [\App\Http\Controllers\Api\ContractorController::class, 'settlementSummary'])->middleware('permission:workers.view_all');
         Route::get('/',                              [\App\Http\Controllers\Api\ContractorController::class, 'index'])->middleware('permission:workers.view_all');
         Route::post('/',                             [\App\Http\Controllers\Api\ContractorController::class, 'store'])->middleware('permission:workers.create');
         Route::get('{id}',                           [\App\Http\Controllers\Api\ContractorController::class, 'show'])->middleware('permission:workers.view_all');
