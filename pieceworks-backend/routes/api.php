@@ -68,6 +68,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/',              [RateCardController::class, 'store'])->middleware('permission:rate_cards.manage');
         Route::get('{id}',            [RateCardController::class, 'show'])->middleware('permission:workers.view_all');
         Route::get('{id}/entries',    [RateCardController::class, 'entries'])->middleware('permission:workers.view_all');
+        Route::post('{id}/entries',   [RateCardController::class, 'addEntry'])->middleware('permission:rate_cards.manage');
         Route::post('{id}/activate',  [RateCardController::class, 'activate'])->middleware('permission:rate_cards.manage');
     });
 
