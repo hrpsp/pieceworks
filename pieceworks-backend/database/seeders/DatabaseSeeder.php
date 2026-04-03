@@ -15,7 +15,8 @@ class DatabaseSeeder extends Seeder
             PublicHolidaysSeeder::class,
             AdminUserSeeder::class,
             RateCardSeeder::class,
-            GradeWageRatesSeeder::class,
+            GradeWageRatesSeeder::class,  // CR-001: grade daily wages for daily_grade + hybrid models
+            DemoDataSeeder::class,        // demo lines, workers, production units, records
         ]);
     }
 }

@@ -26,6 +26,8 @@ class ProductionRecord extends Model
         'rate_amount',
         'gross_earnings',
         'source_tag',
+        'wage_model_applied',        // CR-001: snapshot of wage model at calculation time
+        'rate_detail',               // CR-001: human-readable breakdown for statements
         'shift_adjustment',
         'shift_adj_authorized_by',
         'shift_adj_reason',
@@ -40,13 +42,14 @@ class ProductionRecord extends Model
     protected function casts(): array
     {
         return [
-            'work_date'        => 'date',
-            'pairs_produced'   => 'integer',
-            'rate_amount'      => 'decimal:2',
-            'gross_earnings'   => 'decimal:2',
-            'shift_adjustment' => 'decimal:2',
-            'is_locked'         => 'boolean',
-            'ghost_flagged_at'  => 'datetime',
+            'work_date'           => 'date',
+            'pairs_produced'      => 'integer',
+            'rate_amount'         => 'decimal:2',
+            'gross_earnings'      => 'decimal:2',
+            'shift_adjustment'    => 'decimal:2',
+            'is_locked'           => 'boolean',
+            'ghost_flagged_at'    => 'datetime',
+            'wage_model_applied'  => 'string',   // CR-001: enum stored as string
         ];
     }
 

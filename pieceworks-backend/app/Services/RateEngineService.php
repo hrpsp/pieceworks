@@ -13,9 +13,26 @@ use Illuminate\Support\Facades\Cache;
 
 class RateEngineService
 {
-    private const CACHE_BUST_KEY = 'rate_card_bust';
-    private const RATE_CARD_TTL  = 300;   // 5 minutes
-    private const SKU_TIER_TTL   = 600;   // 10 minutes
+    private const CACHE_BUST_KEY    = 'rate_card_bust';
+    private const RATE_CARD_TTL     = 300;   // 5 minutes
+    private const SKU_TIER_TTL      = 600;   // 10 minutes
+    private const GRADE_WAGE_TTL    = 600;   // 10 minutes — grade wages rarely change mid-day
+
+    /**
+     * Per-request memoization of Worker and ProductionUnit lookups.
+     *
+     * Batch submissions send up to 100 rows that frequently reference the
+     * same worker IDs and production unit.  Without memoisation each row
+     * fires a separate SELECT, resulting in O(n) unnecessary round-trips.
+     * Storing loaded instances in these maps reduces repeated lookups to O(1)
+     * for the lifetime of the service object (one HTTP request).
+     *
+     * @var array<int, Worker>
+     */
+    private array $workerCache = [];
+
+    /** @var array<int, ProductionUnit> */
+    private array $unitCache = [];
 
     // ── Three-model earnings dispatcher (CR-001) ─────────────────────────────
 
@@ -40,10 +57,10 @@ class RateEngineService
         string $workDate,
         int    $pairsProduced,
         string $task,
-        int    $styleSkuId
+        ?int   $styleSkuId = null    // nullable: daily_grade and hybrid models do not require a SKU
     ): array {
-        $worker = Worker::findOrFail($workerId);
-        $unit   = ProductionUnit::findOrFail($productionUnitId);
+        $worker = $this->getWorker($workerId);
+        $unit   = $this->getProductionUnit($productionUnitId);
         $date   = Carbon::parse($workDate)->startOfDay();
 
         $result = match ($unit->wage_model) {
@@ -69,13 +86,9 @@ class RateEngineService
      */
     private function calcDailyGrade(Worker $worker, ProductionUnit $unit, Carbon $date): array
     {
-        $rateCard = $this->getActiveRateCard($date->toDateString());
-
-        $gradeRate = GradeWageRate::where('rate_card_id', $rateCard->id)
-            ->where('grade', $worker->grade)
-            ->firstOrFail();
-
-        $earnings = (float) $gradeRate->daily_wage_pkr;
+        $rateCard  = $this->getActiveRateCard($date->toDateString());
+        $gradeRate = $this->resolveGradeWageRate($rateCard->id, $worker->grade);
+        $earnings  = (float) $gradeRate->daily_wage_pkr;
 
         return [
             'earnings'          => $earnings,
@@ -97,7 +110,7 @@ class RateEngineService
         Carbon         $date,
         int            $pairs,
         string         $task,
-        int            $styleSkuId
+        ?int           $styleSkuId    // nullable — resolveComplexityTier falls back to 'standard'
     ): array {
         $rateCard       = $this->getActiveRateCard($date->toDateString());
         $complexityTier = $this->resolveComplexityTier($styleSkuId);
@@ -170,13 +183,9 @@ class RateEngineService
         Carbon         $date,
         int            $pairs
     ): array {
-        $rateCard = $this->getActiveRateCard($date->toDateString());
-
-        $gradeRate = GradeWageRate::where('rate_card_id', $rateCard->id)
-            ->where('grade', $worker->grade)
-            ->firstOrFail();
-
-        $floorWage       = (float) $gradeRate->daily_wage_pkr;
+        $rateCard  = $this->getActiveRateCard($date->toDateString());
+        $gradeRate = $this->resolveGradeWageRate($rateCard->id, $worker->grade);
+        $floorWage = (float) $gradeRate->daily_wage_pkr;
         $standardOutput  = (int)   ($unit->standard_output_day ?? 0);
         $bonusRatePerPair = (float) ($unit->bonus_rate_per_pair ?? 0.0);
 
@@ -358,6 +367,50 @@ class RateEngineService
     }
 
     // ── Private helpers ──────────────────────────────────────────────────────
+
+    /**
+     * Memoized Worker lookup — prevents repeated DB hits for the same ID
+     * within a single batch submission.
+     */
+    private function getWorker(int $id): Worker
+    {
+        return $this->workerCache[$id] ??= Worker::findOrFail($id);
+    }
+
+    /**
+     * Memoized ProductionUnit lookup — the same unit is referenced by every
+     * row in a typical production session batch.
+     */
+    private function getProductionUnit(int $id): ProductionUnit
+    {
+        return $this->unitCache[$id] ??= ProductionUnit::findOrFail($id);
+    }
+
+    /**
+     * Resolve (and cache) the GradeWageRate for a rate card + grade combination.
+     *
+     * Grade wages change infrequently (typically only when a new rate card
+     * version is activated), so a 10-minute cache dramatically reduces
+     * database round-trips during high-volume batch submissions.
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
+    private function resolveGradeWageRate(int $rateCardId, string $grade): GradeWageRate
+    {
+        $bust     = Cache::get(self::CACHE_BUST_KEY, 0);
+        $cacheKey = "grade_wage_{$bust}_{$rateCardId}_{$grade}";
+
+        $raw = Cache::remember($cacheKey, self::GRADE_WAGE_TTL, function () use ($rateCardId, $grade) {
+            return GradeWageRate::where('rate_card_id', $rateCardId)
+                ->where('grade', $grade)
+                ->firstOrFail()
+                ->toArray();
+        });
+
+        // Reconstruct an unsaved model from the cached array so callers
+        // can use attribute accessors (e.g. ->daily_wage_pkr).
+        return (new GradeWageRate())->forceFill($raw);
+    }
 
     /**
      * Resolve complexity tier from a style SKU.
