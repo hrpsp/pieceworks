@@ -43,11 +43,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Label }             from '@/components/ui/label';
 import {
   Users, Shield, MapPin, Settings2,
   CheckCircle2, XCircle, Plus, Trash2,
   Building2, ChevronDown, ChevronRight,
-  AlertTriangle, Loader2,
+  AlertTriangle, Loader2, Percent, X, UserPlus,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -135,6 +136,52 @@ function useRevokeRole(userId: number) {
   });
 }
 
+function useInviteUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { name: string; email: string; role_slug: string; password: string }) =>
+      apiClient.post<{ data: unknown; message: string }>('/admin/users', body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: settingsKeys.users }),
+  });
+}
+
+function useAddFactoryLocation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { name: string; city: string; province: string; address?: string; is_active: boolean }) =>
+      apiClient.post<{ data: unknown; message: string }>('/admin/factory-locations', body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: settingsKeys.factoryLocations }),
+  });
+}
+
+interface ComplianceConfig {
+  eobi_employer_rate_pct:   number;
+  pessi_employer_rate_pct:  number;
+  min_wage_punjab:          number;
+  min_wage_sindh:           number;
+  min_wage_kpk:             number;
+  min_wage_balochistan:     number;
+  wht_threshold:            number;
+  wht_rate_non_filer_pct:   number;
+}
+
+function useComplianceConfig() {
+  return useQuery({
+    queryKey: ['settings', 'compliance-config'],
+    queryFn:  () => apiClient.get<{ data: ComplianceConfig }>('/admin/compliance-config'),
+    retry: false,
+  });
+}
+
+function usePatchComplianceConfig() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Partial<ComplianceConfig>) =>
+      apiClient.patch<{ data: ComplianceConfig }>('/admin/compliance-config', body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['settings', 'compliance-config'] }),
+  });
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function moduleColor(module: string): string {
@@ -182,13 +229,174 @@ function EndpointPlaceholder({ label }: { label: string }) {
   );
 }
 
+// ── Invite User Modal ─────────────────────────────────────────────────────────
+
+function InviteUserModal({ roles, onClose }: { roles: Role[]; onClose: () => void }) {
+  const [name,     setName]     = useState('');
+  const [email,    setEmail]    = useState('');
+  const [roleSlug, setRoleSlug] = useState('');
+  const [password, setPassword] = useState('');
+  const [err,      setErr]      = useState('');
+
+  const invite = useInviteUser();
+
+  function submit() {
+    if (!name.trim() || !email.trim() || !roleSlug || !password) {
+      setErr('All fields are required.'); return;
+    }
+    invite.mutate(
+      { name: name.trim(), email: email.trim(), role_slug: roleSlug, password },
+      { onSuccess: onClose, onError: () => setErr('Failed to create user. Email may already exist.') }
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#322E53] flex items-center justify-center">
+              <UserPlus size={15} className="text-white"/>
+            </div>
+            <h2 className="font-bold text-foreground text-sm">Invite User</h2>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X size={15}/></button>
+        </div>
+
+        {err && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+            <AlertTriangle size={12}/> {err}
+          </div>
+        )}
+
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Full Name *</Label>
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ahmed Raza" className="h-9 text-sm"/>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Email Address *</Label>
+            <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="ahmed@factory.pk" className="h-9 text-sm"/>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Role *</Label>
+            <select
+              value={roleSlug}
+              onChange={e => setRoleSlug(e.target.value)}
+              className="w-full h-9 text-sm border border-input rounded-md px-3 bg-background text-foreground"
+            >
+              <option value="">Select role…</option>
+              {roles.map(r => <option key={r.slug} value={r.slug}>{r.name}</option>)}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Temporary Password *</Label>
+            <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Min 8 characters" className="h-9 text-sm"/>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-2 border-t border-border">
+          <Button variant="outline" size="sm" onClick={onClose} disabled={invite.isPending}>Cancel</Button>
+          <Button size="sm" onClick={submit} disabled={invite.isPending} className="bg-[#322E53] hover:bg-[#49426E] text-white gap-1.5">
+            {invite.isPending ? <><Loader2 size={13} className="animate-spin"/> Creating…</> : <><CheckCircle2 size={13}/> Create User</>}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Add Factory Location Modal ────────────────────────────────────────────────
+
+function AddLocationModal({ onClose }: { onClose: () => void }) {
+  const [name,     setName]     = useState('');
+  const [city,     setCity]     = useState('');
+  const [province, setProvince] = useState('Punjab');
+  const [address,  setAddress]  = useState('');
+  const [active,   setActive]   = useState(true);
+  const [err,      setErr]      = useState('');
+
+  const addLoc = useAddFactoryLocation();
+
+  function submit() {
+    if (!name.trim() || !city.trim()) { setErr('Name and city are required.'); return; }
+    addLoc.mutate(
+      { name: name.trim(), city: city.trim(), province, address: address.trim() || undefined, is_active: active },
+      { onSuccess: onClose, onError: () => setErr('Failed to add location.') }
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#322E53] flex items-center justify-center">
+              <MapPin size={15} className="text-white"/>
+            </div>
+            <h2 className="font-bold text-foreground text-sm">Add Factory Location</h2>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X size={15}/></button>
+        </div>
+
+        {err && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+            <AlertTriangle size={12}/> {err}
+          </div>
+        )}
+
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Location Name *</Label>
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder="Factory A – Lahore" className="h-9 text-sm"/>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">City *</Label>
+              <Input value={city} onChange={e => setCity(e.target.value)} placeholder="Lahore" className="h-9 text-sm"/>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Province</Label>
+              <select
+                value={province}
+                onChange={e => setProvince(e.target.value)}
+                className="w-full h-9 text-sm border border-input rounded-md px-3 bg-background text-foreground"
+              >
+                {['Punjab','Sindh','KPK','Balochistan','AJK','Gilgit-Baltistan'].map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Address</Label>
+            <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="Optional street address…" className="h-9 text-sm"/>
+          </div>
+          <div className="flex items-center gap-2">
+            <input type="checkbox" id="loc-active" checked={active} onChange={e => setActive(e.target.checked)} className="rounded"/>
+            <Label htmlFor="loc-active" className="text-sm text-foreground cursor-pointer">Active</Label>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-2 border-t border-border">
+          <Button variant="outline" size="sm" onClick={onClose} disabled={addLoc.isPending}>Cancel</Button>
+          <Button size="sm" onClick={submit} disabled={addLoc.isPending} className="bg-[#322E53] hover:bg-[#49426E] text-white gap-1.5">
+            {addLoc.isPending ? <><Loader2 size={13} className="animate-spin"/> Saving…</> : <><CheckCircle2 size={13}/> Add Location</>}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── 1. Users tab ─────────────────────────────────────────────────────────────
 
 function UsersTab() {
   const users    = useSystemUsers();
   const rolesQ   = useRoles();
-  const [roleDialog, setRoleDialog] = useState<SystemUser | null>(null);
+  const [roleDialog,   setRoleDialog]   = useState<SystemUser | null>(null);
   const [selectedRole, setSelectedRole] = useState('');
+  const [inviteOpen,   setInviteOpen]   = useState(false);
 
   const assignRole  = useAssignRole(roleDialog?.id ?? 0);
   const revokeRole  = useRevokeRole(roleDialog?.id ?? 0);
@@ -209,11 +417,20 @@ function UsersTab() {
 
   return (
     <div>
-      <SectionHeader
-        icon={Users}
-        title="System Users"
-        sub="Manage user accounts and role assignments"
-      />
+      <div className="flex items-start justify-between">
+        <SectionHeader
+          icon={Users}
+          title="System Users"
+          sub="Manage user accounts and role assignments"
+        />
+        <Button
+          size="sm"
+          className="bg-[#322E53] hover:bg-[#49426E] text-white gap-1.5 h-8 shrink-0"
+          onClick={() => setInviteOpen(true)}
+        >
+          <UserPlus size={13}/> Invite User
+        </Button>
+      </div>
 
       {/* Table */}
       <div className="rounded-xl border border-border overflow-hidden">
@@ -273,6 +490,11 @@ function UsersTab() {
           </tbody>
         </table>
       </div>
+
+      {/* Invite User modal */}
+      {inviteOpen && (
+        <InviteUserModal roles={roles} onClose={() => setInviteOpen(false)}/>
+      )}
 
       {/* Role assignment dialog */}
       <Dialog open={!!roleDialog} onOpenChange={v => { if (!v) setRoleDialog(null); }}>
@@ -431,6 +653,7 @@ function RolesTab() {
 
 function FactoryLocationsTab() {
   const locationsQ = useFactoryLocations();
+  const [addLocOpen, setAddLocOpen] = useState(false);
 
   if (locationsQ.isError) {
     return <EndpointPlaceholder label="GET /admin/factory-locations — factory location endpoint not yet available" />;
@@ -440,11 +663,22 @@ function FactoryLocationsTab() {
 
   return (
     <div>
-      <SectionHeader
-        icon={MapPin}
-        title="Factory Locations"
-        sub="Bata factory sites registered in this PieceWorks instance"
-      />
+      <div className="flex items-start justify-between">
+        <SectionHeader
+          icon={MapPin}
+          title="Factory Locations"
+          sub="Bata factory sites registered in this PieceWorks instance"
+        />
+        <Button
+          size="sm"
+          className="bg-[#322E53] hover:bg-[#49426E] text-white gap-1.5 h-8 shrink-0"
+          onClick={() => setAddLocOpen(true)}
+        >
+          <Plus size={13}/> Add Location
+        </Button>
+      </div>
+
+      {addLocOpen && <AddLocationModal onClose={() => setAddLocOpen(false)}/>}
 
       {locationsQ.isPending ? (
         <div className="space-y-2">
@@ -495,7 +729,129 @@ function FactoryLocationsTab() {
   );
 }
 
-// ── 4. System Config tab ──────────────────────────────────────────────────────
+// ── 4. Compliance Rates tab ───────────────────────────────────────────────────
+
+function ComplianceRatesTab() {
+  const configQ = useComplianceConfig();
+  const patch   = usePatchComplianceConfig();
+
+  const remote = (configQ.data as any)?.data as ComplianceConfig | undefined;
+
+  const [form, setForm] = useState<Partial<ComplianceConfig>>({});
+  const [saved, setSaved] = useState(false);
+
+  // When remote data loads, seed the form (once)
+  const [seeded, setSeeded] = useState(false);
+  if (remote && !seeded) {
+    setForm({ ...remote });
+    setSeeded(true);
+  }
+
+  function field(key: keyof ComplianceConfig, label: string, hint?: string) {
+    return (
+      <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
+        <div>
+          <p className="text-sm font-medium text-foreground">{label}</p>
+          {hint && <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Input
+            type="number"
+            step="0.01"
+            value={form[key] ?? ''}
+            onChange={e => setForm(f => ({ ...f, [key]: parseFloat(e.target.value) || 0 }))}
+            className="h-8 w-28 text-sm text-right"
+            disabled={patch.isPending}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  function save() {
+    patch.mutate(form, {
+      onSuccess: () => { setSaved(true); setTimeout(() => setSaved(false), 2500); },
+    });
+  }
+
+  function reset() {
+    if (remote) { setForm({ ...remote }); }
+  }
+
+  if (configQ.isError) {
+    return <EndpointPlaceholder label="GET /admin/compliance-config — compliance config endpoint not yet available" />;
+  }
+
+  return (
+    <div>
+      <div className="flex items-start justify-between">
+        <SectionHeader
+          icon={Percent}
+          title="Compliance Rates"
+          sub="EOBI, PESSI, minimum wages, and WHT thresholds — editable per factory"
+        />
+        <div className="flex gap-2 shrink-0">
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={reset} disabled={patch.isPending}>
+            Reset
+          </Button>
+          <Button
+            size="sm"
+            className="h-8 bg-[#322E53] hover:bg-[#49426E] text-white gap-1.5 text-xs"
+            onClick={save}
+            disabled={patch.isPending}
+          >
+            {patch.isPending ? <><Loader2 size={12} className="animate-spin"/> Saving…</> : saved ? <><CheckCircle2 size={12}/> Saved!</> : 'Save Changes'}
+          </Button>
+        </div>
+      </div>
+
+      {configQ.isPending ? (
+        <div className="space-y-2">
+          {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-12 rounded-xl"/>)}
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {/* Social Contributions */}
+          <div className="rounded-xl border border-border overflow-hidden">
+            <div className="px-4 py-2.5 bg-muted/40 border-b border-border">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Social Contributions (%)</p>
+            </div>
+            <div className="px-4">
+              {field('eobi_employer_rate_pct',  'EOBI Employer Rate',  'Percentage of minimum wage — employer contribution')}
+              {field('pessi_employer_rate_pct', 'PESSI Employer Rate', 'Percentage of gross salary — employer contribution')}
+            </div>
+          </div>
+
+          {/* Minimum Wages */}
+          <div className="rounded-xl border border-border overflow-hidden">
+            <div className="px-4 py-2.5 bg-muted/40 border-b border-border">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Minimum Monthly Wages (PKR)</p>
+            </div>
+            <div className="px-4">
+              {field('min_wage_punjab',     'Punjab',     'Current provincial minimum wage')}
+              {field('min_wage_sindh',      'Sindh',      'Current provincial minimum wage')}
+              {field('min_wage_kpk',        'KPK',        'Current provincial minimum wage')}
+              {field('min_wage_balochistan','Balochistan', 'Current provincial minimum wage')}
+            </div>
+          </div>
+
+          {/* Withholding Tax */}
+          <div className="rounded-xl border border-border overflow-hidden">
+            <div className="px-4 py-2.5 bg-muted/40 border-b border-border">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Withholding Tax (WHT)</p>
+            </div>
+            <div className="px-4">
+              {field('wht_threshold',          'WHT Salary Threshold (PKR)', 'Monthly gross above which WHT applies')}
+              {field('wht_rate_non_filer_pct', 'WHT Rate — Non-filer (%)',   'Applied to salary exceeding threshold for non-filers')}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── 5. System Config tab ──────────────────────────────────────────────────────
 
 const CONFIG_ITEMS = [
   {
@@ -608,15 +964,19 @@ export default function SettingsPage() {
           <TabsTrigger value="locations" className="flex items-center gap-1.5">
             <MapPin size={13} /> Locations
           </TabsTrigger>
+          <TabsTrigger value="compliance" className="flex items-center gap-1.5">
+            <Percent size={13} /> Compliance
+          </TabsTrigger>
           <TabsTrigger value="config" className="flex items-center gap-1.5">
             <Settings2 size={13} /> System Config
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="users"     className="mt-5"><UsersTab /></TabsContent>
-        <TabsContent value="roles"     className="mt-5"><RolesTab /></TabsContent>
-        <TabsContent value="locations" className="mt-5"><FactoryLocationsTab /></TabsContent>
-        <TabsContent value="config"    className="mt-5"><SystemConfigTab /></TabsContent>
+        <TabsContent value="users"      className="mt-5"><UsersTab /></TabsContent>
+        <TabsContent value="roles"      className="mt-5"><RolesTab /></TabsContent>
+        <TabsContent value="locations"  className="mt-5"><FactoryLocationsTab /></TabsContent>
+        <TabsContent value="compliance" className="mt-5"><ComplianceRatesTab /></TabsContent>
+        <TabsContent value="config"     className="mt-5"><SystemConfigTab /></TabsContent>
       </Tabs>
     </div>
   );

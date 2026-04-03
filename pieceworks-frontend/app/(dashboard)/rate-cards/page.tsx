@@ -4,14 +4,15 @@ import { useState, useEffect } from 'react';
 import {
   useRateCards, useActiveRateCard, useRateCardEntries,
   useStyleSkus, usePatchSkuTier,
-  type ComplexityTier,
+  type ComplexityTier, type StyleSku,
 } from '@/hooks/useRateCards';
 import { Badge }     from '@/components/ui/badge';
 import { Skeleton }  from '@/components/ui/skeleton';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { CreditCard, AlertCircle, CheckCircle2, Settings, Loader2 } from 'lucide-react';
+import { CreditCard, AlertCircle, CheckCircle2, Settings, Loader2, Search, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { Button }                      from '@/components/ui/button';
 import { PermissionGate, PERMISSIONS } from '@/lib/permissions';
 import { usePermission }               from '@/lib/permissions';
@@ -48,8 +49,9 @@ const TIER_OPTIONS: ComplexityTier[] = ['standard', 'complex', 'premium'];
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function RateCardsPage() {
-  const [selectedId, setSelectedId] = useState<string>('');
-  const [activeTier, setActiveTier] = useState<string>('all');
+  const [selectedId,  setSelectedId]  = useState<string>('');
+  const [activeTier,  setActiveTier]  = useState<string>('all');
+  const [taskSearch,  setTaskSearch]  = useState<string>('');
 
   const canManage = usePermission(PERMISSIONS.RATE_CARDS_MANAGE);
 
@@ -70,9 +72,18 @@ export default function RateCardsPage() {
   const selectedCard = cardList.find(c => c.id === Number(selectedId));
   const entryList  = entries.data?.data ?? [];
 
-  const { tasks, grades, tiers, matrix } = buildMatrix(entryList);
+  const { tasks: allTasks, grades, tiers, matrix } = buildMatrix(entryList);
 
-  const skuList = skus.data?.data ?? [];
+  // Client-side task filter
+  const tasks = taskSearch.trim()
+    ? allTasks.filter(t => t.toLowerCase().includes(taskSearch.trim().toLowerCase()))
+    : allTasks;
+
+  // Backend wraps all responses in { status, message, data: payload }.
+  // StyleSku index returns payload = { data: StyleSku[], counts: {...} }, so the
+  // real array lives two levels deep: .data (outer envelope) → .data (payload) → .data (items).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const skuList: StyleSku[] = (skus.data as any)?.data?.data ?? [];
   const tierCounts = skuList.reduce<Record<string, number>>((acc, s) => {
     acc[s.complexity_tier] = (acc[s.complexity_tier] ?? 0) + 1;
     return acc;
@@ -134,22 +145,42 @@ export default function RateCardsPage() {
         </div>
       )}
 
-      {/* Tier filter tabs */}
+      {/* Tier filter tabs + task search */}
       {entryList.length > 0 && (
-        <div className="flex items-center gap-2">
-          {['all', ...tiers].map(t => (
-            <button
-              key={t}
-              onClick={() => setActiveTier(t)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                activeTier === t
-                  ? 'bg-brand-dark text-white'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-            >
-              {t === 'all' ? 'All tiers' : t}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            {['all', ...tiers].map(t => (
+              <button
+                key={t}
+                onClick={() => setActiveTier(t)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  activeTier === t
+                    ? 'bg-brand-dark text-white'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                }`}
+              >
+                {t === 'all' ? 'All tiers' : t}
+              </button>
+            ))}
+          </div>
+          {/* Task search */}
+          <div className="relative">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"/>
+            <Input
+              value={taskSearch}
+              onChange={e => setTaskSearch(e.target.value)}
+              placeholder="Filter by task…"
+              className="pl-8 h-8 text-xs w-44"
+            />
+            {taskSearch && (
+              <button
+                onClick={() => setTaskSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X size={11}/>
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -171,6 +202,11 @@ export default function RateCardsPage() {
         </div>
       ) : (
         <div className="bg-card rounded-xl border border-border overflow-hidden">
+          {tasks.length === 0 && taskSearch && (
+            <div className="p-8 text-center text-sm text-muted-foreground">
+              No tasks matching &ldquo;{taskSearch}&rdquo;.
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>

@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\ProductionController;
 use App\Http\Controllers\WorkerController;
+use App\Http\Controllers\Api\AdminController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -253,6 +254,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('{id}',   [\App\Http\Controllers\Api\LineController::class, 'update'])->middleware('permission:workers.create');
     });
 });
+
+
+    // ── Admin (Sprint 13) ────────────────────────────────────────────────
+    Route::prefix('admin')->group(function () {
+        Route::get('users',               [AdminController::class, 'listUsers']);
+        Route::post('users',              [AdminController::class, 'inviteUser']);
+        Route::get('factory-locations',   [AdminController::class, 'listLocations']);
+        Route::post('factory-locations',  [AdminController::class, 'createLocation']);
+        Route::get('compliance-config',   [AdminController::class, 'getComplianceConfig']);
+        Route::patch('compliance-config', [AdminController::class, 'patchComplianceConfig']);
+    });
 
 // ── Contractor Portal ─────────────────────────────────────────────────────────
 // Separate group: uses contractor.portal middleware instead of role-based permissions.
