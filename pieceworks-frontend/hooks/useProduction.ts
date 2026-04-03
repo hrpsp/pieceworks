@@ -1,5 +1,6 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient, type ApiEnvelope } from '@/lib/api-client';
+import type { ProductionUnit } from '@/types/pieceworks';
 
 // ── Domain types ─────────────────────────────────────────────────────────────
 
@@ -57,6 +58,21 @@ export interface BatchProductionResult {
     worker_id: number;
     reason: string;
   }>;
+}
+
+// ── Production Units ──────────────────────────────────────────────────────────
+
+/**
+ * Fetch production units scoped to a specific line.
+ * Query is disabled while lineId is undefined.
+ */
+export function useProductionUnits(lineId: number | undefined) {
+  return useQuery({
+    queryKey: ['production-units', lineId],
+    queryFn:  () =>
+      apiClient.get<ApiEnvelope<ProductionUnit[]>>(`/lines/${lineId}/units`),
+    enabled: !!lineId,
+  });
 }
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────

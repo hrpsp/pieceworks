@@ -23,6 +23,13 @@ export interface RateCardEntry {
 
 export type ComplexityTier = 'standard' | 'complex' | 'premium';
 
+export interface GradeWageRate {
+  id:             number;
+  rate_card_id:   number;
+  grade:          string;
+  daily_wage_pkr: string;   // decimal string from Laravel
+}
+
 export interface StyleSku {
   id:              number;
   style_code:      string;
@@ -33,11 +40,12 @@ export interface StyleSku {
 // ── Query keys ────────────────────────────────────────────────────────────────
 
 export const rateCardKeys = {
-  all:     ['rate-cards'] as const,
-  list:    () => [...rateCardKeys.all, 'list'] as const,
-  active:  () => [...rateCardKeys.all, 'active'] as const,
-  entries: (id: number) => [...rateCardKeys.all, id, 'entries'] as const,
-  skus:    () => ['style-skus'] as const,
+  all:        ['rate-cards'] as const,
+  list:       () => [...rateCardKeys.all, 'list'] as const,
+  active:     () => [...rateCardKeys.all, 'active'] as const,
+  entries:    (id: number) => [...rateCardKeys.all, id, 'entries'] as const,
+  gradeWages: (id: number) => [...rateCardKeys.all, id, 'grade-wages'] as const,
+  skus:       () => ['style-skus'] as const,
 };
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
@@ -65,6 +73,16 @@ export function useRateCardEntries(id: number | null | undefined) {
     queryFn:  () =>
       apiClient.get<{ data: RateCardEntry[] }>(`/rate-cards/${id}/entries`),
     enabled: id != null,
+  });
+}
+
+/** Grade wage rates for a specific rate card. */
+export function useGradeWageRates(rateCardId: number | null | undefined) {
+  return useQuery({
+    queryKey: rateCardKeys.gradeWages(rateCardId!),
+    queryFn:  () =>
+      apiClient.get<{ data: GradeWageRate[] }>(`/rate-cards/${rateCardId}/grade-wages`),
+    enabled: rateCardId != null,
   });
 }
 
@@ -105,6 +123,37 @@ export function useAddRateEntry(rateCardId: number | null) {
       if (rateCardId != null) {
         queryClient.invalidateQueries({ queryKey: rateCardKeys.entries(rateCardId) });
       }
+    },
+  });
+}
+
+// ── Grade wage upsert ─────────────────────────────────────────────────────────
+
+export interface UpdateGradeWagesPayload {
+  rateCardId: number;
+  wages:      { grade: string; daily_wage: number }[];
+}
+
+/**
+ * POST /api/rate-cards/{rateCardId}/grade-wages
+ *
+ * Bulk-upsert grade wage rates for the given rate card.
+ * On success, invalidates the grade-wage-rates query for that card.
+ */
+export function useUpdateGradeWages() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ rateCardId, wages }: UpdateGradeWagesPayload) =>
+      apiClient.post<ApiEnvelope<GradeWageRate[]>>(
+        `/rate-cards/${rateCardId}/grade-wages`,
+        { wages }
+      ),
+
+    onSuccess: (_data, { rateCardId }) => {
+      queryClient.invalidateQueries({ queryKey: ['grade-wage-rates', rateCardId] });
+      // Also invalidate the rateCardKeys-namespaced key used by the rate-cards page
+      queryClient.invalidateQueries({ queryKey: rateCardKeys.gradeWages(rateCardId) });
     },
   });
 }

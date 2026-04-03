@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import {
   useRateCards, useActiveRateCard, useRateCardEntries,
-  useStyleSkus, usePatchSkuTier, useAddRateEntry,
-  type ComplexityTier, type StyleSku, type AddRateEntryPayload,
+  useStyleSkus, usePatchSkuTier, useAddRateEntry, useGradeWageRates,
+  type ComplexityTier, type StyleSku, type AddRateEntryPayload, type GradeWageRate,
 } from '@/hooks/useRateCards';
 import { Badge }     from '@/components/ui/badge';
 import { Skeleton }  from '@/components/ui/skeleton';
@@ -60,6 +60,18 @@ const GRADE_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'D',       label: 'Grade D'       },
   { value: 'trainee', label: 'Trainee'       },
 ];
+
+// ── Grade wage helpers ────────────────────────────────────────────────────────
+
+const MIN_WAGE_WEEKLY = 8_545;
+
+function formatPKR(amount: number): string {
+  return `₨ ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+}
+
+function formatGradeLabel(grade: string): string {
+  return grade.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
 
 // ── Add Rate Modal ────────────────────────────────────────────────────────────
 
@@ -247,6 +259,10 @@ export default function RateCardsPage() {
   const entries    = useRateCardEntries(selectedId ? Number(selectedId) : null);
   const skus       = useStyleSkus();
   const patchTier  = usePatchSkuTier();
+
+  const activeCardId = (activeCard.data as any)?.data?.id ?? null;
+  const gradeWages   = useGradeWageRates(activeCardId);
+  const gradeWageList: GradeWageRate[] = (gradeWages.data as any)?.data ?? [];
 
   // Auto-select: prefer the active rate card, fall back to the most recent one.
   // Note: cardList is declared below — use rateCards.data directly here to avoid TDZ.
@@ -530,6 +546,87 @@ export default function RateCardsPage() {
           </table>
         )}
       </div>
+
+      {/* Grade Daily Wages */}
+      <div className="bg-white rounded-xl shadow-sm p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-bold text-sm" style={{ color: '#322E53' }}>Grade Daily Wages</h2>
+          <PermissionGate permission={PERMISSIONS.RATE_CARDS_MANAGE}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs border-brand-dark text-brand-dark"
+            >
+              Edit Wages
+            </Button>
+          </PermissionGate>
+        </div>
+
+        {gradeWages.isPending ? (
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-8 w-full" />
+            ))}
+          </div>
+        ) : gradeWageList.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4">
+            No grade wage rates found for the active rate card.
+          </p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/40">
+                {['Grade', 'Daily Wage (PKR)', 'Weekly (×6 days)', 'Min Wage Floor'].map(h => (
+                  <th
+                    key={h}
+                    className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {gradeWageList.map(row => {
+                const daily  = parseFloat(row.daily_wage_pkr);
+                const weekly = daily * 6;
+                const aboveFloor = weekly >= MIN_WAGE_WEEKLY;
+                return (
+                  <tr key={row.id} className="border-b border-border last:border-0 hover:bg-muted/20">
+                    <td className="px-4 py-3 font-medium text-foreground">
+                      {formatGradeLabel(row.grade)}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-foreground">
+                      {formatPKR(daily)}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                      {formatPKR(weekly)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {aboveFloor ? (
+                        <span className="flex items-center gap-1 text-green-700 text-xs font-medium">
+                          <CheckCircle2 size={12}/> Above Floor
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-red-600 text-xs font-medium">
+                          <X size={12}/> Below Floor
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+
+        <p className="text-xs text-gray-500 mt-3">
+          Used by <span className="font-mono">DAILY_GRADE</span> and{' '}
+          <span className="font-mono">HYBRID</span> production units.{' '}
+          <span className="font-mono">PER_PAIR</span> units use the rate matrix above.
+        </p>
+      </div>
+
     </div>
   );
 }

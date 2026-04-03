@@ -12,6 +12,7 @@ import {
 } from '@/hooks/useWorkers';
 import { formatPKR }    from '@/lib/formatters';
 import { apiClient }    from '@/lib/api-client';
+import { WageModelBadge } from '@/components/ui/WageModelBadge';
 import { Badge }        from '@/components/ui/badge';
 import { Skeleton }     from '@/components/ui/skeleton';
 import { Separator }    from '@/components/ui/separator';
@@ -239,7 +240,21 @@ export default function WorkerDetailPage({ params }: { params: { id: string } })
                       <td className="px-4 py-2.5 capitalize text-muted-foreground text-xs">{r.shift}</td>
                       <td className="px-4 py-2.5">{r.task}</td>
                       <td className="px-4 py-2.5 font-medium">{r.pairs_produced.toLocaleString()}</td>
-                      <td className="px-4 py-2.5">{formatPKR(Number(r.gross_earnings))}</td>
+                      <td className="px-4 py-2.5">
+                        {(r as any).wage_model_applied ? (
+                          <div className="flex items-center gap-2">
+                            <WageModelBadge
+                              model={(r as any).wage_model_applied}
+                              showLabel={false}
+                            />
+                            <span className="text-xs text-gray-500">
+                              {(r as any).rate_detail}
+                            </span>
+                          </div>
+                        ) : (
+                          formatPKR(Number(r.gross_earnings))
+                        )}
+                      </td>
                       <td className="px-4 py-2.5">
                         <span className="flex items-center gap-1.5">
                           {STATUS_ICON[r.validation_status]}
