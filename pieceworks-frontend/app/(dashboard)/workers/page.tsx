@@ -45,7 +45,7 @@ function exportWorkersCSV(
     w.cnic ?? '',
     w.grade ?? '',
     w.default_shift ?? '',
-    `"${contractorMap.get(w.contractor_id) ?? (w.contractor_id ? `#${w.contractor_id}` : '—')}"`,
+    `"${(w as any).contractor?.name ?? contractorMap.get(w.contractor_id) ?? (w.contractor_id ? `#${w.contractor_id}` : '—')}"`,
     w.status ?? '',
   ]);
 
@@ -296,9 +296,10 @@ export default function WorkersPage() {
               </tr>
             ) : (
               workers.map(worker => {
-                const contractorName = worker.contractor_id
-                  ? (contractorMap.get(worker.contractor_id) ?? `#${worker.contractor_id}`)
-                  : '—';
+                const contractorName = (worker as any).contractor?.name
+                  ?? (worker.contractor_id
+                    ? (contractorMap.get(worker.contractor_id) ?? `#${worker.contractor_id}`)
+                    : '—');
                 return (
                   <tr
                     key={worker.id}
