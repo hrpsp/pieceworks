@@ -65,6 +65,7 @@ export interface Contractor {
   bank_account:        string | null;
   bank_name:           string | null;
   portal_access:       boolean;
+  tor_rate_pct:        number | null;
   status:              'active' | 'suspended' | 'expired';
   created_at:          string;
   updated_at:          string;
@@ -82,6 +83,7 @@ export interface ContractorPayload {
   bank_account?:       string;
   bank_name?:          string;
   portal_access?:      boolean;
+  tor_rate_pct?:       number;
   status?:             'active' | 'suspended' | 'expired';
 }
 
@@ -107,7 +109,7 @@ export function useContractorDashboard() {
   return useQuery({
     queryKey: contractorKeys.dashboard(),
     queryFn:  () =>
-      apiClient.get<ApiEnvelope<ContractorDashboard>>('/contractor/dashboard'),
+      apiClient.get<ApiEnvelope<ContractorDashboard>>('/contractors/dashboard'),
   });
 }
 
@@ -135,7 +137,7 @@ export function useContractorSettlement(weekRef: string) {
     queryKey: contractorKeys.settlement(weekRef),
     queryFn:  () =>
       apiClient.get<ApiEnvelope<ContractorSettlement>>(
-        `/contractor/settlement/${weekRef}`
+        `/contractors/settlement/${weekRef}`
       ),
     enabled: !!weekRef,
   });

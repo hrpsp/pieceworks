@@ -15,11 +15,14 @@ class Contractor extends Model
         'ntn_cnic',
         'contact_person',
         'phone',
+        'whatsapp',
         'contract_start',
         'contract_end',
         'payment_cycle',
         'bank_account',
+        'bank_name',
         'portal_access',
+        'tor_rate_pct',
         'status',
     ];
 
@@ -29,6 +32,7 @@ class Contractor extends Model
             'contract_start' => 'date',
             'contract_end'   => 'date',
             'portal_access'  => 'boolean',
+            'tor_rate_pct'   => 'float',
         ];
     }
 
