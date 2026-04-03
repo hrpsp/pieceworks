@@ -69,16 +69,27 @@ class ContractorSettlementService
         $margin            = round($bataOwes - $workersPaid, 2);
         $contractedRateAvg = $totalPairs > 0 ? round($bataOwes / $totalPairs, 4) : null;
 
+        // ── TOR (Terms of Reference) overhead ──────────────────────────────
+        // tor_rate_pct lives on the contractors table (added in CR-002 migration).
+        // Snapshot the rate at settlement time so historical records remain stable.
+        $contractor         = \App\Models\Contractor::findOrFail($contractorId);
+        $torRatePct         = (float) ($contractor->tor_rate_pct ?? 0.0);
+        $torAmount          = round($bataOwes * ($torRatePct / 100.0), 2);
+        $settlementAfterTor = round($bataOwes + $torAmount, 2);
+
         $settlement = ContractorSettlement::updateOrCreate(
             ['contractor_id' => $contractorId, 'payroll_run_id' => $payrollRunId],
             [
-                'week_ref'            => $run->week_ref,
-                'total_pairs'         => $totalPairs,
-                'contracted_rate_avg' => $contractedRateAvg,
-                'bata_owes'           => $bataOwes,
-                'workers_paid'        => $workersPaid,
-                'contractor_margin'   => $margin,
-                'settlement_status'   => 'pending',
+                'week_ref'             => $run->week_ref,
+                'total_pairs'          => $totalPairs,
+                'contracted_rate_avg'  => $contractedRateAvg,
+                'bata_owes'            => $bataOwes,
+                'tor_rate_pct'         => $torRatePct,
+                'tor_amount'           => $torAmount,
+                'settlement_after_tor' => $settlementAfterTor,
+                'workers_paid'         => $workersPaid,
+                'contractor_margin'    => $margin,
+                'settlement_status'    => 'pending',
             ]
         );
 

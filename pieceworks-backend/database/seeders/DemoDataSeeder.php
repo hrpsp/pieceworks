@@ -204,7 +204,7 @@ class DemoDataSeeder extends Seeder
             ['task' => 'Packing',       'worker_grade' => 'A', 'complexity_tier' => 'standard', 'rate_pkr' => 12.00],
             ['task' => 'Packing',       'worker_grade' => 'A', 'complexity_tier' => 'complex',  'rate_pkr' => 15.00],
             ['task' => 'Packing',       'worker_grade' => 'B', 'complexity_tier' => 'standard', 'rate_pkr' => 10.00],
-            ['task' => 'Packing',       'worker_grade' => 'B', 'complexity_tier' => 'complex',  'rate_pkr' => 13.00],
+            ['task' => 'Packing',       'worker_grade' => 'B', 'complexity_tier' => 'complex',  'rate_pkr' => 12.00],
             ['task' => 'Packing',       'worker_grade' => 'C', 'complexity_tier' => 'standard', 'rate_pkr' =>  8.00],
             ['task' => 'Packing',       'worker_grade' => 'C', 'complexity_tier' => 'complex',  'rate_pkr' => 10.00],
         ];
@@ -234,8 +234,11 @@ class DemoDataSeeder extends Seeder
             'contract_end'   => null,
             'payment_cycle'  => 'weekly',
             'portal_access'  => false,
+            'tor_rate_pct'   => 15.00,   // CR-008
             'status'         => 'active',
         ]);
+        // Ensure TOR rate is always up to date even for existing records
+        $c1->update(['tor_rate_pct' => 15.00]);
 
         $c2 = Contractor::firstOrCreate(['ntn_cnic' => '0002345-6'], [
             'name'           => 'Raza Manpower Solutions',
@@ -245,8 +248,10 @@ class DemoDataSeeder extends Seeder
             'contract_end'   => null,
             'payment_cycle'  => 'weekly',
             'portal_access'  => false,
+            'tor_rate_pct'   => 12.00,   // CR-008
             'status'         => 'active',
         ]);
+        $c2->update(['tor_rate_pct' => 12.00]);
 
         $c3 = Contractor::firstOrCreate(['ntn_cnic' => '0003456-7'], [
             'name'           => 'Premier Skilled Workers',
@@ -256,8 +261,10 @@ class DemoDataSeeder extends Seeder
             'contract_end'   => null,
             'payment_cycle'  => 'biweekly',
             'portal_access'  => false,
+            'tor_rate_pct'   => 18.00,   // CR-008
             'status'         => 'active',
         ]);
+        $c3->update(['tor_rate_pct' => 18.00]);
 
         $this->command->info('  Contractors: 3 seeded');
         return [$c1, $c2, $c3];

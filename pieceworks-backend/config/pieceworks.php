@@ -36,15 +36,25 @@ return [
     |--------------------------------------------------------------------------
     | Overtime
     |--------------------------------------------------------------------------
-    | weekly_regular_hours – hours before OT kicks in (6 days × 8h = 48)
-    | shift_hours          – standard hours per shift
-    | ot_multiplier        – premium factor (1.0 = 100% extra on top of base)
-    | min_gap_hours        – rest gap below which a shift is flagged as OT
+    | ot_threshold_regular   – weekly hours before OT kicks in (Bata standard: 45h)
+    | ot_threshold_watchward – Watch & Ward workers have a higher threshold (48h)
+    | shift_hours            – standard hours per shift
+    | ot_multiplier          – premium factor (1.0 = 100% extra on top of base)
+    | min_gap_hours          – rest gap below which a shift is flagged as OT
+    | night_ot_eligible_shifts – shifts that attract night-OT premium
+    | ot_categories          – the three OT buckets tracked per worker per week
+    |
+    | Note: weekly_regular_hours retained as an alias for ot_threshold_regular
+    | for backward compatibility with existing code referencing it.
     */
-    'weekly_regular_hours' => 48,
-    'shift_hours'          => 8,
-    'ot_multiplier'        => 1.0,     // 2× total = base + 1× premium
-    'min_gap_hours'        => 8,
+    'weekly_regular_hours'    => 45,        // updated from 48 — Bata 5-day × 9h = 45
+    'ot_threshold_regular'    => 45,        // all workers except Watch & Ward
+    'ot_threshold_watchward'  => 48,        // Watch & Ward (GB shift) extended threshold
+    'shift_hours'             => 9,         // GA/GB = 9h net; E1/E2/E3 = 8h net
+    'ot_multiplier'           => 1.0,       // 2× total = base + 1× premium
+    'min_gap_hours'           => 8,
+    'night_ot_eligible_shifts' => ['E2', 'E3', 'GB'],
+    'ot_categories'           => ['regular', 'night', 'extra'],
 
     /*
     |--------------------------------------------------------------------------
@@ -107,13 +117,70 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Shift Start / End Times (24-hour)
+    | Shifts Master (Bata shift codes — effective after CR-004 migration)
     |--------------------------------------------------------------------------
+    | Keys match the new enum: GA, E1, E2, E3, GB
+    |
+    | night_ot_eligible – workers on these shifts earn the night-OT premium
+    | saturday_hours    – hours clocked on Saturday (proportional day)
+    | weekly_hours      – contractual hours: regular days × shift_hours + saturday_hours
     */
-    'shift_times' => [
-        'morning'   => ['start' => '07:00', 'end' => '15:00'],
-        'afternoon' => ['start' => '15:00', 'end' => '23:00'],
-        'night'     => ['start' => '23:00', 'end' => '07:00'], // ends next day
+    'shifts' => [
+        'GA' => [
+            'label'              => 'General Day',
+            'start'              => '07:00',
+            'end'                => '17:00',
+            'hours'              => 9,
+            'days_per_week'      => 5,
+            'saturday_hours'     => 0,
+            'weekly_hours'       => 45,
+            'break_minutes'      => 60,
+            'night_ot_eligible'  => false,
+        ],
+        'E1' => [
+            'label'              => 'Early Morning',
+            'start'              => '06:00',
+            'end'                => '14:00',
+            'hours'              => 8,
+            'days_per_week'      => 5.5,
+            'saturday_hours'     => 5,
+            'weekly_hours'       => 45,
+            'break_minutes'      => 0,
+            'night_ot_eligible'  => false,
+        ],
+        'E2' => [
+            'label'              => 'Afternoon',
+            'start'              => '14:00',
+            'end'                => '22:00',
+            'hours'              => 8,
+            'days_per_week'      => 5.5,
+            'saturday_hours'     => 5,
+            'weekly_hours'       => 45,
+            'break_minutes'      => 0,
+            'night_ot_eligible'  => true,
+        ],
+        'E3' => [
+            'label'              => 'Night',
+            'start'              => '22:00',
+            'end'                => '06:00',
+            'hours'              => 8,
+            'days_per_week'      => 5.5,
+            'saturday_hours'     => 5,
+            'weekly_hours'       => 45,
+            'break_minutes'      => 0,
+            'night_ot_eligible'  => true,
+        ],
+        'GB' => [
+            'label'              => 'Late Evening / Watch & Ward',
+            'start'              => '17:00',
+            'end'                => '03:00',
+            'hours'              => 9,
+            'days_per_week'      => 5,
+            'saturday_hours'     => 0,
+            'weekly_hours'       => 45,
+            'break_minutes'      => 60,
+            'night_ot_eligible'  => true,
+        ],
     ],
 
     /*

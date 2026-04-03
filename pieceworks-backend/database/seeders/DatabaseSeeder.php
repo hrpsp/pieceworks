@@ -16,7 +16,9 @@ class DatabaseSeeder extends Seeder
             AdminUserSeeder::class,
             RateCardSeeder::class,
             GradeWageRatesSeeder::class,  // CR-001: grade daily wages for daily_grade + hybrid models
+            LeaveTypesSeeder::class,      // CR-007: 15 Bata leave codes master table
             DemoDataSeeder::class,        // demo lines, workers, production units, records
+            BataDemoSeeder::class,        // CR-009: Bata-specific full demo dataset (20 workers, W15)
         ]);
     }
 }
