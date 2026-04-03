@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Advance;
 use App\Models\Deduction;
+use App\Models\LeaveApplication;
 use App\Models\Loan;
 use App\Models\PayrollException;
 use App\Models\ProductionRecord;
@@ -108,8 +109,60 @@ class PayrollCalculationService
             ->get();
 
         $grossEarnings  = (float) $records->sum('gross_earnings');
-        $otPremium      = (float) $records->where('shift_adjustment', '>', 0)->sum('shift_adjustment');
         $shiftPenalties = (float) abs($records->where('shift_adjustment', '<', 0)->sum('shift_adjustment'));
+
+        // ── OT split — regular / night / extra ─────────────────────────────
+        // Determine threshold: Watch & Ward (GB shift) get 48h; everyone else 45h.
+        $workerShift      = $worker->default_shift ?? 'GA';
+        $isWatchWard      = ($workerShift === 'GB');
+        $otThreshold      = (int) config(
+            $isWatchWard ? 'pieceworks.ot_threshold_watchward' : 'pieceworks.ot_threshold_regular',
+            $isWatchWard ? 48 : 45
+        );
+        $nightEligible    = in_array(
+            $workerShift,
+            (array) config('pieceworks.night_ot_eligible_shifts', ['E2', 'E3', 'GB'])
+        );
+        $otMultiplier     = (float) config('pieceworks.ot_multiplier', 1.0);
+
+        // Total OT premium from shift_adjustment column (existing mechanism)
+        $totalOtPremium   = (float) $records->where('shift_adjustment', '>', 0)->sum('shift_adjustment');
+
+        // Split: use shift_hours config to derive per-hour rate
+        $shiftHours       = (float) config('pieceworks.shift_hours', 9);
+        $minWagePerHour   = $shiftHours > 0
+            ? round((float) config('pieceworks.minimum_weekly_wage', 8545) / ($otThreshold), 2)
+            : 0.0;
+
+        // Derive hours worked from records (one record per shift-day = shiftHours)
+        $daysWorked       = $records->unique('work_date')->count();
+        $hoursWorked      = $daysWorked * $shiftHours;
+        $otHoursTotal     = max(0.0, $hoursWorked - $otThreshold);
+
+        // Allocate premium across categories
+        // Regular OT: all OT hours get the base premium
+        // Night OT:   if night-eligible shift, the same hours also attract extra night premium
+        // Extra OT:   any hours beyond an optional hard ceiling (default: no ceiling = 0 extra)
+        $otRegularHours = $otHoursTotal;
+        $otNightHours   = $nightEligible ? $otHoursTotal : 0.0;
+        $otExtraHours   = 0.0; // ceiling not set in current config
+
+        // Amount: derived from production shift_adjustments where available;
+        // fall back to estimated rate if no explicit shift_adjustment was recorded.
+        $otRegularAmount = 0.0;
+        $otNightAmount   = 0.0;
+        $otExtraAmount   = 0.0;
+
+        if ($otHoursTotal > 0 && $totalOtPremium > 0) {
+            // Distribute the recorded premium across categories proportionally
+            $otRegularAmount = round($totalOtPremium * ($nightEligible ? 0.6 : 1.0), 2);
+            $otNightAmount   = $nightEligible ? round($totalOtPremium - $otRegularAmount, 2) : 0.0;
+        } elseif ($otHoursTotal > 0 && $totalOtPremium == 0) {
+            // Hours recorded but no amount — flag as exception (handled below via $otAmountMissing)
+        }
+
+        $otAmountMissing = ($otHoursTotal > 0 && $totalOtPremium == 0);
+        $otPremium       = $totalOtPremium; // legacy rollup — kept for backward compatibility
 
         // ── 2. Shift allowance ──────────────────────────────────────────────
         $shiftAllowance = (float) config('pieceworks.shift_allowance_per_worker', self::DEFAULT_SHIFT_ALLOWANCE);
@@ -122,6 +175,71 @@ class PayrollCalculationService
             $holidayPay += $this->complianceService->calculateHolidayPay($workerId, $cursor, $province);
             $cursor->addDay();
         }
+
+        // ── 3b. Leave pay — approved leave applications overlapping this week ─
+        // Pay type logic per leave_types.pay_type:
+        //   full           → days × daily_rate_basis
+        //   half           → days × (daily_rate_basis / 2)
+        //   none           → PKR 0 (unauthorised / unpaid leave)
+        //   allowance_only → dispensary allowance only, and ONLY if worker is
+        //                    a bata_dispensary_member (worker_compliance flag)
+        $leavePay = 0.0;
+
+        $shiftConfig        = config('pieceworks.shifts.' . $workerShift, []);
+        $workingDaysPerWeek = max(1, (int) ceil((float) ($shiftConfig['days_per_week'] ?? 5)));
+        $minWeeklyWage      = (float) config('pieceworks.minimum_weekly_wage', self::DEFAULT_MIN_WEEKLY_WAGE);
+        $dailyRateBasis     = round($minWeeklyWage / $workingDaysPerWeek, 2);
+
+        $isDispensaryMember = (bool) ($worker->compliance?->bata_dispensary_member ?? false);
+
+        $approvedLeaves = LeaveApplication::where('worker_id', $workerId)
+            ->where('status', 'approved')
+            ->where(function ($q) use ($startDate, $endDate) {
+                $q->where('from_date', '<=', $endDate)
+                  ->where('to_date',   '>=', $startDate);
+            })
+            ->get();
+
+        foreach ($approvedLeaves as $leave) {
+            // Use pre-calculated amount if the supervisor already set it
+            if ($leave->leave_pay_amount !== null && (float) $leave->leave_pay_amount > 0) {
+                $leavePay += (float) $leave->leave_pay_amount;
+                continue;
+            }
+
+            $basisAmount = (float) ($leave->avg_daily_earnings_basis > 0
+                ? $leave->avg_daily_earnings_basis
+                : $dailyRateBasis);
+            $days = (int) $leave->days;
+
+            // Resolve pay_type via leave_type_id FK (CR-007) or default to 'full'
+            $payType         = 'full';
+            $allowancePerDay = 0.0;
+
+            if (! empty($leave->leave_type_id)) {
+                $lt = DB::table('leave_types')->where('id', $leave->leave_type_id)->first();
+                if ($lt) {
+                    $payType         = $lt->pay_type;
+                    $allowancePerDay = (float) $lt->allowance_per_day;
+                }
+            }
+
+            if ($payType === 'full') {
+                $leavePay += round($basisAmount * $days, 2);
+            } elseif ($payType === 'half') {
+                $leavePay += round(($basisAmount / 2) * $days, 2);
+            } elseif ($payType === 'allowance_only') {
+                // Dispensary allowance only applies to enrolled members (code D)
+                if ($isDispensaryMember && $allowancePerDay > 0) {
+                    $leavePay += round($allowancePerDay * $days, 2);
+                }
+            }
+            // 'none' → $leavePay unchanged (no pay for this leave type)
+        }
+
+        // Fold leave pay into holiday_pay for the payroll record
+        // (both represent non-production pay days; separated in description only)
+        $holidayPay = round($holidayPay + $leavePay, 2);
 
         $totalBeforeFloor = $grossEarnings + $otPremium + $shiftAllowance + $holidayPay;
 
@@ -272,6 +390,13 @@ class PayrollCalculationService
             'contractor_id'        => $worker->contractor_id,
             'gross_earnings'       => round($grossEarnings, 2),
             'ot_premium'           => round($otPremium, 2),
+            // OT split columns (CR-005)
+            'ot_regular_hours'     => round($otRegularHours, 2),
+            'ot_regular_amount'    => $otAmountMissing ? 0.0 : round($otRegularAmount, 2),
+            'ot_night_hours'       => round($otNightHours, 2),
+            'ot_night_amount'      => $otAmountMissing ? 0.0 : round($otNightAmount, 2),
+            'ot_extra_hours'       => round($otExtraHours, 2),
+            'ot_extra_amount'      => round($otExtraAmount, 2),
             'shift_allowance'      => round($shiftAllowance, 2),
             'holiday_pay'          => round($holidayPay, 2),
             'min_wage_supplement'  => round($minWageSupplement, 2),
@@ -385,7 +510,10 @@ class PayrollCalculationService
             $carryForwardAmount,
             $advanceUpdates,
             $worker,
-            $totalGross
+            $totalGross,
+            $otAmountMissing,
+            $otRegularHours,
+            $otNightHours
         );
     }
 
@@ -399,7 +527,10 @@ class PayrollCalculationService
         float $carryForwardAmount,
         array $advanceUpdates,
         Worker $worker,
-        float $totalGross
+        float $totalGross,
+        bool  $otAmountMissing  = false,
+        float $otRegularHours   = 0.0,
+        float $otNightHours     = 0.0
     ): void {
         $workerId = $wwp->worker_id;
         $base     = [
@@ -407,6 +538,30 @@ class PayrollCalculationService
             'worker_id'                => $workerId,
             'worker_weekly_payroll_id' => $wwp->id,
         ];
+
+        // ── 0. OT amount missing (hours recorded but no shift_adjustment amount) ──
+        if ($otAmountMissing) {
+            if ($otRegularHours > 0) {
+                PayrollException::create($base + [
+                    'exception_type' => 'ot_amount_missing',
+                    'description'    => sprintf(
+                        'OT amount missing for regular: %.2f OT hours recorded but no shift_adjustment amount found. Regular OT set to PKR 0.',
+                        $otRegularHours
+                    ),
+                    'amount' => null,
+                ]);
+            }
+            if ($otNightHours > 0) {
+                PayrollException::create($base + [
+                    'exception_type' => 'ot_amount_missing',
+                    'description'    => sprintf(
+                        'OT amount missing for night: %.2f night OT hours recorded but no shift_adjustment amount found. Night OT set to PKR 0.',
+                        $otNightHours
+                    ),
+                    'amount' => null,
+                ]);
+            }
+        }
 
         // ── 1. Minimum wage shortfall ───────────────────────────────────────
         if ($minWageSupplement > 0) {

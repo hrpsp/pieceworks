@@ -400,7 +400,7 @@ export default function ContractorPage() {
   const dashboard       = useContractorDashboard();
   const settlement      = useContractorSettlement(weekRef);
 
-  const contractorList  = contractorsList.data?.data ?? [];
+  const contractorList  = (contractorsList.data?.data?.data as any[]) ?? [];
   const dash            = dashboard.data?.data;
   const settlementData  = settlement.data?.data;
 
