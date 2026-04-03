@@ -228,10 +228,10 @@ function MapWorkerDialog({
           <div className="max-h-56 overflow-y-auto divide-y divide-border rounded-lg border border-border">
             {workers.isPending ? (
               <div className="p-3 text-sm text-muted-foreground text-center">Loading…</div>
-            ) : (workers.data?.data ?? []).length === 0 ? (
+            ) : ((workers.data as any)?.data?.data ?? []).length === 0 ? (
               <div className="p-3 text-sm text-muted-foreground text-center">No workers found</div>
             ) : (
-              (workers.data?.data ?? []).map(w => (
+              ((workers.data as any)?.data?.data ?? []).map((w: any) => (
                 <button
                   key={w.id}
                   className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
@@ -344,9 +344,9 @@ export default function IntegrationPage() {
           <TabsTrigger value="staging">Staging Records</TabsTrigger>
           <TabsTrigger value="mapping">
             Worker Mapping
-            {(unmapped.data?.data?.length ?? 0) > 0 && (
+            {((unmapped.data as any)?.data?.unmapped_count ?? 0) > 0 && (
               <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500 text-white text-[10px] font-bold">
-                {unmapped.data!.data!.length}
+                {(unmapped.data as any)?.data?.unmapped_count}
               </span>
             )}
           </TabsTrigger>
@@ -498,7 +498,7 @@ export default function IntegrationPage() {
                       ))}
                     </tr>
                   ))
-                ) : (unmapped.data?.data ?? []).length === 0 ? (
+                ) : ((unmapped.data as any)?.data?.items ?? []).length === 0 ? (
                   <tr>
                     <td colSpan={3} className="px-4 py-10 text-center text-sm text-muted-foreground">
                       <CheckCircle2 size={20} className="mx-auto mb-2 text-green-500" />
@@ -506,18 +506,18 @@ export default function IntegrationPage() {
                     </td>
                   </tr>
                 ) : (
-                  (unmapped.data?.data ?? []).map(w => (
+                  ((unmapped.data as any)?.data?.items ?? []).map((w: any) => (
                     <tr key={w.external_worker_id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3 font-mono text-sm">{w.external_worker_id}</td>
                       <td className="px-4 py-3 text-right">
-                        <span className="font-medium">{w.sample_records}</span>
+                        <span className="font-medium">{w.staging_count}</span>
                       </td>
                       <td className="px-4 py-3">
                         <Button
                           size="sm"
                           variant="outline"
                           className="h-7 text-xs"
-                          onClick={() => setMapTarget({ externalId: w.external_worker_id, count: w.sample_records })}
+                          onClick={() => setMapTarget({ externalId: w.external_worker_id, count: w.staging_count })}
                         >
                           <MapPin size={12} className="mr-1" /> Map Worker
                         </Button>
