@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\GradeWageRate;
 use App\Models\RateCard;
 use App\Models\RateCardEntry;
 use App\Services\RateEngineService;
@@ -304,6 +305,55 @@ class RateCardController extends Controller
             $card->fresh(['approver:id,name', 'entries'])->toArray() + ['status' => 'active'],
             "Rate card {$card->version} activated. Rate engine cache flushed."
         );
+    }
+
+    // ── Grade wages ─────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/rate-cards/{rateCard}/grade-wages
+     *
+     * All GradeWageRate records for the given rate card, ordered by grade ascending.
+     */
+    public function gradeWages(RateCard $rateCard): JsonResponse
+    {
+        $wages = GradeWageRate::where('rate_card_id', $rateCard->id)
+            ->orderBy('grade')
+            ->get();
+
+        return $this->success($wages, 'Grade wage rates retrieved.');
+    }
+
+    /**
+     * PUT /api/rate-cards/{rateCard}/grade-wages
+     *
+     * Bulk upsert grade wage rates for the given rate card.
+     * Each item is matched on rate_card_id + grade; daily_wage_pkr is updated.
+     */
+    public function storeGradeWages(Request $request, RateCard $rateCard): JsonResponse
+    {
+        $request->validate([
+            'wages'               => ['required', 'array'],
+            'wages.*.grade'       => ['required', 'string'],
+            'wages.*.daily_wage'  => ['required', 'numeric', 'min:0'],
+        ]);
+
+        foreach ($request->wages as $wage) {
+            GradeWageRate::updateOrCreate(
+                [
+                    'rate_card_id' => $rateCard->id,
+                    'grade'        => $wage['grade'],
+                ],
+                [
+                    'daily_wage_pkr' => $wage['daily_wage'],
+                ]
+            );
+        }
+
+        $updated = GradeWageRate::where('rate_card_id', $rateCard->id)
+            ->orderBy('grade')
+            ->get();
+
+        return $this->success($updated, 'Grade wages updated.');
     }
 
     // ── Private helpers ─────────────────────────────────────────────────────

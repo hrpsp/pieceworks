@@ -69,7 +69,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('{id}',            [RateCardController::class, 'show'])->middleware('permission:workers.view_all');
         Route::get('{id}/entries',    [RateCardController::class, 'entries'])->middleware('permission:workers.view_all');
         Route::post('{id}/entries',   [RateCardController::class, 'addEntry'])->middleware('permission:rate_cards.manage');
-        Route::post('{id}/activate',  [RateCardController::class, 'activate'])->middleware('permission:rate_cards.manage');
+        Route::post('{id}/activate',        [RateCardController::class, 'activate'])->middleware('permission:rate_cards.manage');
+        Route::get('{rateCard}/grade-wages',  [RateCardController::class, 'gradeWages'])->middleware('permission:workers.view_all');
+        Route::post('{rateCard}/grade-wages', [RateCardController::class, 'storeGradeWages'])->middleware('permission:rate_cards.manage');
     });
 
     // ── Style SKUs ────────────────────────────────────────────────────────────

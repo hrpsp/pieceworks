@@ -22,6 +22,7 @@ class Worker extends Model
         'grade',
         'default_shift',
         'default_line_id',
+        'production_unit_id',
         'training_period',
         'training_end_date',
         'payment_method',
@@ -52,6 +53,11 @@ class Worker extends Model
     public function defaultLine(): BelongsTo
     {
         return $this->belongsTo(Line::class, 'default_line_id');
+    }
+
+    public function productionUnit(): BelongsTo
+    {
+        return $this->belongsTo(ProductionUnit::class);
     }
 
     public function productionRecords(): HasMany

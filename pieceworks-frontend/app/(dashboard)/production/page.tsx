@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useProductionBatch }       from '@/hooks/useProduction';
+import { useProductionBatch, useProductionUnits } from '@/hooks/useProduction';
 import { useWorkers }               from '@/hooks/useWorkers';
+import type { ProductionUnit }      from '@/types/pieceworks';
+import { WageModelBadge }           from '@/components/ui/WageModelBadge';
 import { useSyncStatus }            from '@/hooks/useSyncStatus';
 import {
   saveToQueue,
@@ -50,10 +52,12 @@ function emptyRow(): EntryRow {
 export default function ProductionPage() {
   const today = new Date().toISOString().split('T')[0];
 
-  const [lineId,    setLineId]    = useState('');
-  const [shift,     setShift]     = useState<'morning'|'evening'|'night'>('morning');
-  const [date,      setDate]      = useState(today);
-  const [rows,      setRows]      = useState<EntryRow[]>([emptyRow()]);
+  const [lineId,        setLineId]        = useState('');
+  const [productionUnitId, setProductionUnitId] = useState('');
+  const [selectedUnit,  setSelectedUnit]  = useState<ProductionUnit | null>(null);
+  const [shift,         setShift]         = useState<'morning'|'evening'|'night'>('morning');
+  const [date,          setDate]          = useState(today);
+  const [rows,          setRows]          = useState<EntryRow[]>([emptyRow()]);
   const [queue,     setQueue]     = useState<ProductionSession[]>([]);
   const [isOnline,  setIsOnline]  = useState(true);
   const [toast,     setToast]     = useState<{ type: 'ok'|'err'|'info'; msg: string } | null>(null);
@@ -62,6 +66,7 @@ export default function ProductionPage() {
   const syncingRef = useRef(false);
 
   const workers = useWorkers({ status: 'active', per_page: 200 });
+  const units   = useProductionUnits(parseInt(lineId) || undefined);
   const batch   = useProductionBatch();
   const { pendingCount } = useSyncStatus();
 
@@ -153,6 +158,10 @@ export default function ProductionPage() {
       showToast('err', 'Enter a Line ID before submitting.');
       return false;
     }
+    if (!productionUnitId) {
+      showToast('err', 'Select a Production Unit before submitting.');
+      return false;
+    }
     return true;
   }
 
@@ -160,14 +169,15 @@ export default function ProductionPage() {
     return rows
       .filter(r => r.worker_id && r.task && r.pairs_produced)
       .map(r => ({
-        worker_id:        parseInt(r.worker_id),
-        line_id:          parseInt(lineId),
-        work_date:        date,
+        worker_id:          parseInt(r.worker_id),
+        line_id:            parseInt(lineId),
+        production_unit_id: parseInt(productionUnitId),
+        work_date:          date,
         shift,
-        task:             r.task,
-        pairs_produced:   parseInt(r.pairs_produced),
-        source_tag:       'manual_supervisor' as const,
-        supervisor_notes: r.supervisor_notes || undefined,
+        task:               r.task,
+        pairs_produced:     parseInt(r.pairs_produced),
+        source_tag:         'manual_supervisor' as const,
+        supervisor_notes:   r.supervisor_notes || undefined,
       }));
   }
 
@@ -346,7 +356,7 @@ export default function ProductionPage() {
             </Select>
           </div>
 
-          <div className="space-y-1.5 col-span-2">
+          <div className="space-y-1.5">
             <Label className="text-xs">Line ID</Label>
             <Input
               type="number"
@@ -357,7 +367,53 @@ export default function ProductionPage() {
               className="h-9"
             />
           </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Production Unit <span className="text-destructive">*</span></Label>
+            <Select
+              value={productionUnitId}
+              onValueChange={v => {
+                setProductionUnitId(v);
+                const unitList: ProductionUnit[] = (units.data as any)?.data ?? [];
+                setSelectedUnit(unitList.find(u => String(u.id) === v) ?? null);
+              }}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Select unit…" />
+              </SelectTrigger>
+              <SelectContent>
+                {units.isPending
+                  ? <SelectItem value="_">Loading…</SelectItem>
+                  : ((units.data as any)?.data ?? []).map((u: ProductionUnit) => (
+                      <SelectItem key={u.id} value={String(u.id)}>
+                        {u.name}
+                      </SelectItem>
+                    ))
+                }
+              </SelectContent>
+            </Select>
+          </div>
         </div>
+
+        {/* Wage model context */}
+        {selectedUnit && (
+          <div className="mt-4 flex flex-wrap items-center gap-3 px-1 text-sm">
+            <span className="text-muted-foreground text-xs font-medium">Wage Model:</span>
+            <WageModelBadge model={selectedUnit.wage_model} />
+            {selectedUnit.wage_model === 'daily_grade' && (
+              <span className="text-xs text-muted-foreground">
+                Pairs tracked for productivity only
+              </span>
+            )}
+            {selectedUnit.wage_model === 'hybrid' && (
+              <span className="text-xs text-muted-foreground">
+                Standard: {selectedUnit.standard_output_day ?? '—'} pairs/day
+                {' '}|{' '}
+                Bonus: PKR {selectedUnit.bonus_rate_per_pair ?? '—'}/pair above standard
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Entry rows */}

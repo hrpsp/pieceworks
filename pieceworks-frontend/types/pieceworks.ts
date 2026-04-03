@@ -11,6 +11,7 @@ export type ShiftType       = 'morning' | 'afternoon' | 'night';
 export type PaymentMethod   = 'cash' | 'bank_transfer' | 'easypaisa' | 'jazzcash';
 export type ValidationStatus= 'pending' | 'validated' | 'disputed' | 'rejected';
 export type ProductionSource= 'bata_api' | 'manual_supervisor' | 'manual_backfill';
+export type WageModel       = 'daily_grade' | 'per_pair' | 'hybrid';
 
 // ── Worker ────────────────────────────────────────────────────────────────────
 
@@ -105,6 +106,34 @@ export interface RateCard {
   entries?:        RateCardEntry[];
 }
 
+// ── Grade Wage Rate ───────────────────────────────────────────────────────────
+
+export interface GradeWageRate {
+  id:             number;
+  rate_card_id:   number;
+  grade:          'grade_1' | 'grade_2' | 'grade_3' | 'grade_4' | 'grade_5' |
+                  'grade_6' | 'grade_7' | 'grade_8' | 'grade_9' | 'grade_10';
+  daily_wage_pkr: number;
+}
+
+// ── Production Unit ───────────────────────────────────────────────────────────
+
+export interface ProductionUnit {
+  id:                   number;
+  name:                 string;
+  line_id:              number;
+  operation:            string;
+  supervisor_id:        number | null;
+  default_contractor_id: number | null;
+  capacity_workers:     number | null;
+  status:               'active' | 'inactive';
+  wage_model:           WageModel;
+  standard_output_day:  number | null;
+  bonus_rate_per_pair:  number | null;
+  created_at:           string;
+  updated_at:           string;
+}
+
 // ── Production ────────────────────────────────────────────────────────────────
 
 export interface ProductionRecord {
@@ -129,6 +158,8 @@ export interface ProductionRecord {
   ghost_risk_level:          string | null;
   ghost_flagged_at:          string | null;
   billing_contractor_id:     number | null;
+  wage_model_applied:        WageModel;
+  rate_detail:               string;
   created_at:                string;
   updated_at:                string;
   // Relations
@@ -636,3 +667,11 @@ export interface ContractorSettlementExt {
   settlement_status: 'pending' | 'approved' | 'paid';
   settled_at: string | null;
 }
+
+// ── Wage Model Labels ─────────────────────────────────────────────────────────
+
+export const WAGE_MODEL_LABELS: Record<WageModel, string> = {
+  daily_grade: 'Daily Grade Wage',
+  per_pair:    'Per Pair Rate',
+  hybrid:      'Hybrid (Floor + Bonus)',
+};

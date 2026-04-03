@@ -6,6 +6,7 @@ use App\Models\Contractor;
 use App\Models\Line;
 use App\Models\PayrollException;
 use App\Models\ProductionRecord;
+use App\Models\ProductionUnit;
 use App\Models\RateCard;
 use App\Models\RateCardEntry;
 use App\Models\StyleSku;
@@ -43,6 +44,7 @@ class DemoDataSeeder extends Seeder
         $this->command->info('Seeding demo data for ' . self::WEEK_REF . ' …');
 
         $this->seedLines();
+        $this->seedProductionUnits();
         $this->seedStyleSkus();
         $this->seedRateCard();
         [$c1, $c2, $c3] = $this->seedContractors();
@@ -79,6 +81,36 @@ class DemoDataSeeder extends Seeder
         ]);
 
         $this->command->info('  Lines: 2 seeded');
+    }
+
+    // ── Production units ──────────────────────────────────────────────────────
+
+    private function seedProductionUnits(): void
+    {
+        $lineA = Line::where('name', 'Line A')->first();
+        $lineB = Line::where('name', 'Line B')->first();
+
+        ProductionUnit::firstOrCreate(['name' => 'Stitching Unit 3'], [
+            'line_id'             => $lineA->id,
+            'operation'           => 'Stitching',
+            'capacity_workers'    => 12,
+            'status'              => 'active',
+            'wage_model'          => 'daily_grade',
+            'standard_output_day' => null,
+            'bonus_rate_per_pair' => null,
+        ]);
+
+        ProductionUnit::firstOrCreate(['name' => 'Finishing Unit 1'], [
+            'line_id'             => $lineB->id,
+            'operation'           => 'Finishing',
+            'capacity_workers'    => 10,
+            'status'              => 'active',
+            'wage_model'          => 'hybrid',
+            'standard_output_day' => 100,
+            'bonus_rate_per_pair' => 15.00,
+        ]);
+
+        $this->command->info('  Production units: 2 seeded');
     }
 
     // ── Style SKUs ────────────────────────────────────────────────────────────
