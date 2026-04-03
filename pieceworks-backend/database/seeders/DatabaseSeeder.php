@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             PublicHolidaysSeeder::class,
             AdminUserSeeder::class,
             RateCardSeeder::class,
+            GradeWageRatesSeeder::class,
         ]);
     }
 }

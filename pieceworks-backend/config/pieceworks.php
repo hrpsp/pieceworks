@@ -125,4 +125,30 @@ return [
     'dispute_window_hours'         => env('PAYROLL_DISPUTE_WINDOW_HOURS', 12),
     'ghost_worker_anomaly_threshold' => env('PAYROLL_GHOST_ANOMALY_MULTIPLIER', 2.0),
     'bata_api_poll_interval_minutes' => env('BATA_API_POLL_INTERVAL', 30),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Wage Models
+    |--------------------------------------------------------------------------
+    | Defines the three supported wage calculation models, their human-readable
+    | labels, descriptions, and the data prerequisites each model requires
+    | before earnings can be calculated.
+    */
+    'wage_models' => [
+        'daily_grade' => [
+            'label'       => 'Daily Grade Wage',
+            'description' => 'Fixed daily wage based on worker grade. Pairs tracked for productivity only.',
+            'requires'    => ['grade_wage_rates'],
+        ],
+        'per_pair' => [
+            'label'       => 'Per Pair Rate',
+            'description' => 'Pay per pair produced based on task, tier, and grade.',
+            'requires'    => ['rate_card_entries'],
+        ],
+        'hybrid' => [
+            'label'       => 'Hybrid (Floor + Bonus)',
+            'description' => 'Guaranteed daily minimum plus bonus per pair above standard output.',
+            'requires'    => ['grade_wage_rates', 'standard_output_day', 'bonus_rate_per_pair'],
+        ],
+    ],
 ];

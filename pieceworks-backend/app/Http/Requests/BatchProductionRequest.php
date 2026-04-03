@@ -14,6 +14,7 @@ class BatchProductionRequest extends BaseRequest
         return [
             'records'                           => ['required', 'array', 'min:1', 'max:100'],
             'records.*.worker_id'               => ['required', 'integer', 'exists:workers,id'],
+            'records.*.production_unit_id'      => ['required', 'integer', 'exists:production_units,id'],
             'records.*.line_id'                 => ['required', 'integer', 'exists:lines,id'],
             'records.*.work_date'               => ['required', 'date'],
             'records.*.shift'                   => ['required', 'in:morning,evening,night'],

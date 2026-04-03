@@ -49,14 +49,16 @@ class ProductionController extends Controller
                 $validationStatus = $riskData['risk_level'] === 'high' ? 'flagged' : 'pending';
 
                 // Rate resolution
-                $rate = $this->rateEngine->calculateRate(
-                    $row['worker_id'],
-                    $row['task'],
-                    $row['style_sku_id'] ?? null,
-                    $workDate
+                $rateResult = $this->rateEngine->calculateEarnings(
+                    workerId:         $row['worker_id'],
+                    productionUnitId: $row['production_unit_id'],
+                    workDate:         $workDate->toDateString(),
+                    pairsProduced:    $row['pairs_produced'],
+                    task:             $row['task'],
+                    styleSkuId:       $row['style_sku_id'] ?? null
                 );
 
-                if (! $rate) {
+                if (! $rateResult) {
                     $failed[] = [
                         'index'     => $i,
                         'worker_id' => $row['worker_id'],
@@ -77,9 +79,11 @@ class ProductionController extends Controller
                     'shift_adj_authorized_by' => $row['shift_adj_authorized_by'] ?? null,
                     'shift_adj_reason'        => $row['shift_adj_reason'] ?? null,
                     'supervisor_notes'        => $row['supervisor_notes'] ?? null,
-                    'rate_card_entry_id'      => $rate ? $rate['rate_card_entry_id'] : null,
-                    'rate_amount'             => $rate ? $rate['rate_amount'] : 0,
-                    'gross_earnings'          => $rate ? ($row['pairs_produced'] * $rate['rate_amount']) : 0,
+                    'rate_card_entry_id'      => $rateResult['rate_card_entry_id'] ?? null,
+                    'rate_amount'             => $rateResult['rate_amount'] ?? 0,
+                    'gross_earnings'          => $rateResult['earnings'],
+                    'wage_model_applied'      => $rateResult['wage_model'],
+                    'rate_detail'             => $rateResult['rate_detail'],
                     'validation_status'       => $validationStatus,
                     'ghost_risk_level'        => $riskData['risk_level'],
                     'ghost_flagged_at'        => in_array($riskData['risk_level'], ['medium', 'high']) ? now() : null,
