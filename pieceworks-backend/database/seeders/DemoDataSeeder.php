@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\DB;
  * Seeds a realistic week of factory data:
  *   - 3 contractors, 8 workers spread across them
  *   - 2 production lines
- *   - Active rate card v4 with 4 tasks × 3 grades × 2 tiers
+ *   - Active rate card vv4 with 6 tasks × 3 grades (A/B/C) × 2 tiers = 36 entries
  *   - 4 style SKUs (standard, complex, premium mix)
  *   - Mon–Sat production records (week 2026-W14)
  *   - One worker below minimum wage floor (triggers top-up)
@@ -138,58 +138,88 @@ class DemoDataSeeder extends Seeder
         // Deactivate any existing active cards
         RateCard::where('is_active', true)->update(['is_active' => false]);
 
-        $card = RateCard::firstOrCreate(
-            ['version' => '4.0'],
+        $card = RateCard::updateOrCreate(
+            ['version' => 'vv4'],
             [
-                'effective_date'    => '2026-01-01',
+                'effective_date'    => '2026-02-01',
                 'is_active'         => true,
                 'training_rate_pct' => 70.00,
-                'notes'             => 'Demo rate card — seeded by DemoDataSeeder',
+                'notes'             => 'Unified rate card — all grades A/B/C, seeded by DemoDataSeeder',
             ]
         );
 
-        // task × grade × tier → rate_pkr
+        // Wipe any stale entries (junior/senior era rows) before rebuilding
+        RateCardEntry::where('rate_card_id', $card->id)->delete();
+
+        // task × grade × tier → rate_pkr (PKR per pair produced)
+        //
+        // Grade key: A = senior skilled · B = mid-level · C = junior skilled
+        // Tiers:     standard = normal SKU complexity · complex = intricate SKU
+        //
+        // Grades D and trainee are excluded from piece-rate production —
+        // they earn daily_grade wages only (see grade_wage_rates table).
+        //
+        // NOTE — Packing rates (★) were not fully specified in the original
+        // CR-003 brief (message cut off at "Tier Stan"). Values below are
+        // estimated from the A:B:C ratio pattern of the other 5 tasks.
+        // Confirm with client before go-live and update PayrollDemoSeeder
+        // if packing production records are added to the demo dataset.
         $entries = [
-            // Lasting
-            ['task' => 'Lasting',      'worker_grade' => 'C',   'complexity_tier' => 'standard', 'rate_pkr' =>  42.00],
-            ['task' => 'Lasting',      'worker_grade' => 'C',   'complexity_tier' => 'complex',  'rate_pkr' =>  55.00],
-            ['task' => 'Lasting',      'worker_grade' => 'B', 'complexity_tier' => 'standard', 'rate_pkr' =>  52.00],
-            ['task' => 'Lasting',      'worker_grade' => 'B', 'complexity_tier' => 'complex',  'rate_pkr' =>  67.00],
-            ['task' => 'Lasting',      'worker_grade' => 'A',   'complexity_tier' => 'standard', 'rate_pkr' =>  62.00],
-            ['task' => 'Lasting',      'worker_grade' => 'A',   'complexity_tier' => 'complex',  'rate_pkr' =>  88.00],
-            // Stitching
-            ['task' => 'Stitching',    'worker_grade' => 'C',   'complexity_tier' => 'standard', 'rate_pkr' =>  38.00],
-            ['task' => 'Stitching',    'worker_grade' => 'C',   'complexity_tier' => 'complex',  'rate_pkr' =>  50.00],
-            ['task' => 'Stitching',    'worker_grade' => 'B', 'complexity_tier' => 'standard', 'rate_pkr' =>  48.00],
-            ['task' => 'Stitching',    'worker_grade' => 'B', 'complexity_tier' => 'complex',  'rate_pkr' =>  63.00],
-            ['task' => 'Stitching',    'worker_grade' => 'A',   'complexity_tier' => 'standard', 'rate_pkr' =>  58.00],
-            ['task' => 'Stitching',    'worker_grade' => 'A',   'complexity_tier' => 'complex',  'rate_pkr' =>  82.00],
-            // Sole Pressing
-            ['task' => 'Sole Pressing','worker_grade' => 'C',   'complexity_tier' => 'standard', 'rate_pkr' =>  35.00],
-            ['task' => 'Sole Pressing','worker_grade' => 'B', 'complexity_tier' => 'standard', 'rate_pkr' =>  45.00],
-            ['task' => 'Sole Pressing','worker_grade' => 'A',   'complexity_tier' => 'standard', 'rate_pkr' =>  55.00],
-            ['task' => 'Sole Pressing','worker_grade' => 'A',   'complexity_tier' => 'complex',  'rate_pkr' =>  75.00],
-            // Finishing
-            ['task' => 'Finishing',    'worker_grade' => 'C',   'complexity_tier' => 'standard', 'rate_pkr' =>  30.00],
-            ['task' => 'Finishing',    'worker_grade' => 'B', 'complexity_tier' => 'standard', 'rate_pkr' =>  40.00],
-            ['task' => 'Finishing',    'worker_grade' => 'B', 'complexity_tier' => 'complex',  'rate_pkr' =>  53.00],
-            ['task' => 'Finishing',    'worker_grade' => 'A',   'complexity_tier' => 'standard', 'rate_pkr' =>  50.00],
-            ['task' => 'Finishing',    'worker_grade' => 'A',   'complexity_tier' => 'complex',  'rate_pkr' =>  70.00],
+            // ── Cutting ────────────────────────────────────────────────────
+            ['task' => 'Cutting',       'worker_grade' => 'A', 'complexity_tier' => 'standard', 'rate_pkr' => 18.00],
+            ['task' => 'Cutting',       'worker_grade' => 'A', 'complexity_tier' => 'complex',  'rate_pkr' => 22.00],
+            ['task' => 'Cutting',       'worker_grade' => 'B', 'complexity_tier' => 'standard', 'rate_pkr' => 15.00],
+            ['task' => 'Cutting',       'worker_grade' => 'B', 'complexity_tier' => 'complex',  'rate_pkr' => 18.00],
+            ['task' => 'Cutting',       'worker_grade' => 'C', 'complexity_tier' => 'standard', 'rate_pkr' => 12.00],
+            ['task' => 'Cutting',       'worker_grade' => 'C', 'complexity_tier' => 'complex',  'rate_pkr' => 15.00],
+            // ── Stitching ──────────────────────────────────────────────────
+            ['task' => 'Stitching',     'worker_grade' => 'A', 'complexity_tier' => 'standard', 'rate_pkr' => 38.00],
+            ['task' => 'Stitching',     'worker_grade' => 'A', 'complexity_tier' => 'complex',  'rate_pkr' => 48.00],
+            ['task' => 'Stitching',     'worker_grade' => 'B', 'complexity_tier' => 'standard', 'rate_pkr' => 32.00],
+            ['task' => 'Stitching',     'worker_grade' => 'B', 'complexity_tier' => 'complex',  'rate_pkr' => 40.00],
+            ['task' => 'Stitching',     'worker_grade' => 'C', 'complexity_tier' => 'standard', 'rate_pkr' => 26.00],
+            ['task' => 'Stitching',     'worker_grade' => 'C', 'complexity_tier' => 'complex',  'rate_pkr' => 33.00],
+            // ── Lasting ────────────────────────────────────────────────────
+            ['task' => 'Lasting',       'worker_grade' => 'A', 'complexity_tier' => 'standard', 'rate_pkr' => 28.00],
+            ['task' => 'Lasting',       'worker_grade' => 'A', 'complexity_tier' => 'complex',  'rate_pkr' => 35.00],
+            ['task' => 'Lasting',       'worker_grade' => 'B', 'complexity_tier' => 'standard', 'rate_pkr' => 23.00],
+            ['task' => 'Lasting',       'worker_grade' => 'B', 'complexity_tier' => 'complex',  'rate_pkr' => 29.00],
+            ['task' => 'Lasting',       'worker_grade' => 'C', 'complexity_tier' => 'standard', 'rate_pkr' => 19.00],
+            ['task' => 'Lasting',       'worker_grade' => 'C', 'complexity_tier' => 'complex',  'rate_pkr' => 24.00],
+            // ── Sole Pressing ──────────────────────────────────────────────
+            ['task' => 'Sole Pressing', 'worker_grade' => 'A', 'complexity_tier' => 'standard', 'rate_pkr' => 22.00],
+            ['task' => 'Sole Pressing', 'worker_grade' => 'A', 'complexity_tier' => 'complex',  'rate_pkr' => 28.00],
+            ['task' => 'Sole Pressing', 'worker_grade' => 'B', 'complexity_tier' => 'standard', 'rate_pkr' => 18.00],
+            ['task' => 'Sole Pressing', 'worker_grade' => 'B', 'complexity_tier' => 'complex',  'rate_pkr' => 23.00],
+            ['task' => 'Sole Pressing', 'worker_grade' => 'C', 'complexity_tier' => 'standard', 'rate_pkr' => 15.00],
+            ['task' => 'Sole Pressing', 'worker_grade' => 'C', 'complexity_tier' => 'complex',  'rate_pkr' => 19.00],
+            // ── Finishing ──────────────────────────────────────────────────
+            ['task' => 'Finishing',     'worker_grade' => 'A', 'complexity_tier' => 'standard', 'rate_pkr' => 16.00],
+            ['task' => 'Finishing',     'worker_grade' => 'A', 'complexity_tier' => 'complex',  'rate_pkr' => 20.00],
+            ['task' => 'Finishing',     'worker_grade' => 'B', 'complexity_tier' => 'standard', 'rate_pkr' => 13.00],
+            ['task' => 'Finishing',     'worker_grade' => 'B', 'complexity_tier' => 'complex',  'rate_pkr' => 17.00],
+            ['task' => 'Finishing',     'worker_grade' => 'C', 'complexity_tier' => 'standard', 'rate_pkr' => 11.00],
+            ['task' => 'Finishing',     'worker_grade' => 'C', 'complexity_tier' => 'complex',  'rate_pkr' => 14.00],
+            // ── Packing ★ (estimated — confirm with client) ────────────────
+            ['task' => 'Packing',       'worker_grade' => 'A', 'complexity_tier' => 'standard', 'rate_pkr' => 12.00],
+            ['task' => 'Packing',       'worker_grade' => 'A', 'complexity_tier' => 'complex',  'rate_pkr' => 15.00],
+            ['task' => 'Packing',       'worker_grade' => 'B', 'complexity_tier' => 'standard', 'rate_pkr' => 10.00],
+            ['task' => 'Packing',       'worker_grade' => 'B', 'complexity_tier' => 'complex',  'rate_pkr' => 13.00],
+            ['task' => 'Packing',       'worker_grade' => 'C', 'complexity_tier' => 'standard', 'rate_pkr' =>  8.00],
+            ['task' => 'Packing',       'worker_grade' => 'C', 'complexity_tier' => 'complex',  'rate_pkr' => 10.00],
         ];
 
         foreach ($entries as $e) {
-            RateCardEntry::firstOrCreate(
-                [
-                    'rate_card_id'    => $card->id,
-                    'task'            => $e['task'],
-                    'worker_grade'    => $e['worker_grade'],
-                    'complexity_tier' => $e['complexity_tier'],
-                ],
-                ['rate_pkr' => $e['rate_pkr']]
-            );
+            RateCardEntry::create([
+                'rate_card_id'    => $card->id,
+                'task'            => $e['task'],
+                'worker_grade'    => $e['worker_grade'],
+                'complexity_tier' => $e['complexity_tier'],
+                'rate_pkr'        => $e['rate_pkr'],
+            ]);
         }
 
-        $this->command->info('  Rate card v4.0: ' . count($entries) . ' entries seeded');
+        $this->command->info('  Rate card vv4: ' . count($entries) . ' entries seeded (6 tasks × 3 grades × 2 tiers)');
     }
 
     // ── Contractors ───────────────────────────────────────────────────────────
@@ -373,7 +403,7 @@ class DemoDataSeeder extends Seeder
     {
         $lineA = Line::where('name', 'Line A')->first();
         $lineB = Line::where('name', 'Line B')->first();
-        $card  = RateCard::where('version', '4.0')->first();
+        $card  = RateCard::where('is_active', true)->firstOrFail(); // always uses current active card
 
         // task → [grade, tier] → rate entry
         $rateMap = RateCardEntry::where('rate_card_id', $card->id)
