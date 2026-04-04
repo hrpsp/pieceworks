@@ -19,7 +19,7 @@ class ShiftAdjustmentService
 
     public function __construct()
     {
-        $this->shiftTimes  = config('pieceworks.shift_times');
+        $this->shiftTimes  = config('pieceworks.shifts');
         $this->minGapHours = (int) config('pieceworks.min_gap_hours', 8);
     }
 
@@ -176,7 +176,8 @@ class ShiftAdjustmentService
      */
     private function computeGap(int $workerId, Carbon $date, string $actualShift): array
     {
-        $shiftOrder = ['morning' => 0, 'afternoon' => 1, 'night' => 2];
+        // Shift order for same-day sequencing: GA < E1 < E2 < E3 < GB
+        // (used in FIELD() ordering — earlier shift = lower position)
 
         // Find the last production record for this worker BEFORE this shift
         $lastRecord = DB::table('production_records')
@@ -188,12 +189,12 @@ class ShiftAdjustmentService
                 ->orWhere(fn ($inner) => $inner
                     ->where('work_date', $date->toDateString())
                     ->where('shift', '!=', $actualShift)
-                    ->whereRaw('FIELD(shift, "morning", "afternoon", "night") < FIELD(?, "morning", "afternoon", "night")', [$actualShift])
+                    ->whereRaw('FIELD(shift, "GA","E1","E2","E3","GB") < FIELD(?, "GA","E1","E2","E3","GB")', [$actualShift])
                 )
             )
             ->whereNotIn('validation_status', ['rejected'])
             ->orderByDesc('work_date')
-            ->orderByRaw('FIELD(shift, "night", "afternoon", "morning")')
+            ->orderByRaw('FIELD(shift, "GB","E3","E2","E1","GA")')
             ->first(['work_date', 'shift']);
 
         if (! $lastRecord) {
@@ -231,8 +232,9 @@ class ShiftAdjustmentService
         $time  = $this->shiftTimes[$shift]['end'] ?? '15:00';
         $end   = Carbon::parse("{$date} {$time}");
 
-        if ($shift === 'night') {
-            $end->addDay(); // night shift: ends next morning
+        // E3 (22:00–06:00) and GB (17:00–03:00) cross midnight — end is next day
+        if (in_array($shift, ['E3', 'GB'])) {
+            $end->addDay();
         }
 
         return $end;

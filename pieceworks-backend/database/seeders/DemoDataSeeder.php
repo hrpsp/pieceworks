@@ -70,13 +70,13 @@ class DemoDataSeeder extends Seeder
     {
         Line::firstOrCreate(['name' => 'Line A'], [
             'factory_location'    => 'Bata Lahore',
-            'default_shift'       => 'morning',
+            'default_shift'       => 'GA',
             'capacity_pairs_day'  => 500,
         ]);
 
         Line::firstOrCreate(['name' => 'Line B'], [
             'factory_location'    => 'Bata Lahore',
-            'default_shift'       => 'morning',
+            'default_shift'       => 'GA',
             'capacity_pairs_day'  => 480,
         ]);
 
@@ -284,7 +284,7 @@ class DemoDataSeeder extends Seeder
                 'cnic'           => '35201-1234567-1',
                 'worker_type'    => 'contractual',
                 'grade' => 'A',
-                'default_shift'  => 'morning',
+                'default_shift'  => 'GA',
                 'payment_method' => 'easypaisa',
                 'payment_number' => '0300-1111111',
                 'whatsapp'       => '0300-1111111',
@@ -298,7 +298,7 @@ class DemoDataSeeder extends Seeder
                 'cnic'           => '35201-2345678-2',
                 'worker_type'    => 'contractual',
                 'grade' => 'B',
-                'default_shift'  => 'morning',
+                'default_shift'  => 'GA',
                 'payment_method' => 'easypaisa',
                 'payment_number' => '0312-2222222',
                 'whatsapp'       => '0312-2222222',
@@ -312,7 +312,7 @@ class DemoDataSeeder extends Seeder
                 'cnic'           => '35202-3456789-0',
                 'worker_type'    => 'contractual',
                 'grade' => 'C',
-                'default_shift'  => 'morning',
+                'default_shift'  => 'GA',
                 'payment_method' => 'jazzcash',
                 'payment_number' => '0345-3333333',
                 'whatsapp'       => '0345-3333333',
@@ -327,7 +327,7 @@ class DemoDataSeeder extends Seeder
                 'cnic'           => '35401-4567890-3',
                 'worker_type'    => 'contractual',
                 'grade' => 'B',
-                'default_shift'  => 'morning',
+                'default_shift'  => 'GA',
                 'payment_method' => 'bank',
                 'payment_number' => 'HBL-001234567',
                 'whatsapp'       => '0321-4444444',
@@ -341,7 +341,7 @@ class DemoDataSeeder extends Seeder
                 'cnic'           => '35401-5678901-4',
                 'worker_type'    => 'contractual',
                 'grade' => 'A',
-                'default_shift'  => 'morning',
+                'default_shift'  => 'GA',
                 'payment_method' => 'easypaisa',
                 'payment_number' => '0333-5555555',
                 'whatsapp'       => '0333-5555555',
@@ -355,7 +355,7 @@ class DemoDataSeeder extends Seeder
                 'cnic'           => '35202-6789012-9',
                 'worker_type'    => 'contractual',
                 'grade' => 'C',
-                'default_shift'  => 'morning',
+                'default_shift'  => 'GA',
                 'payment_method' => 'jazzcash',
                 'payment_number' => '0300-6666666',
                 'whatsapp'       => '0300-6666666',
@@ -371,7 +371,7 @@ class DemoDataSeeder extends Seeder
                 'cnic'           => '35501-7890123-5',
                 'worker_type'    => 'contractual',
                 'grade' => 'B',
-                'default_shift'  => 'morning',
+                'default_shift'  => 'GA',
                 'payment_method' => 'bank',
                 'payment_number' => 'UBL-009876543',
                 'whatsapp'       => '0321-7777777',
@@ -385,7 +385,7 @@ class DemoDataSeeder extends Seeder
                 'cnic'           => '35501-8901234-6',
                 'worker_type'    => 'contractual',
                 'grade' => 'C',
-                'default_shift'  => 'morning',
+                'default_shift'  => 'GA',
                 'payment_method' => 'easypaisa',
                 'payment_number' => '0300-8888888',
                 'whatsapp'       => '0300-8888888',
@@ -461,7 +461,7 @@ class DemoDataSeeder extends Seeder
                     [
                         'worker_id' => $worker->id,
                         'work_date' => $date,
-                        'shift'     => 'morning',
+                        'shift'     => 'GA',
                         'task'      => $task,
                     ],
                     [

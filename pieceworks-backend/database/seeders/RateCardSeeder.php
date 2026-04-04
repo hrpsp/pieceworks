@@ -24,21 +24,56 @@ class RateCardSeeder extends Seeder
             'effective_date' => '2026-02-01',
             'is_active'      => true,
             'approved_by'    => $admin?->id,
-            'notes'          => 'Rate card v4 — effective Feb 1, 2026',
+            'notes'          => 'Rate card v4 — canonical grades A/B/C/D, effective Feb 1 2026',
         ]);
 
-        // Matrix: [task => [tier => [junior_rate, senior_rate]]]
+        // Grade key:  A = highly skilled  · B = mid-level  · C = entry-level  · D = unskilled/basic
+        // Tier key:   simple < standard < complex < premium
+        // Rate (PKR per pair produced) — trainee workers are daily-wage only, no piece rate entry needed.
+        //
+        // Matrix: [task => [tier => [A, B, C, D]]]
         $matrix = [
-            'Cutting'    => ['simple' => [8, 10], 'standard' => [10, 13], 'complex' => [13, 16], 'premium' => [16, 20]],
-            'Stitching'  => ['simple' => [22, 28], 'standard' => [28, 35], 'complex' => [35, 44], 'premium' => [42, 52]],
-            'Lasting'    => ['simple' => [18, 22], 'standard' => [22, 28], 'complex' => [28, 35], 'premium' => [34, 42]],
-            'Sole Press' => ['simple' => [12, 15], 'standard' => [15, 18], 'complex' => [18, 22], 'premium' => [22, 28]],
-            'Finishing'  => ['simple' => [10, 12], 'standard' => [12, 15], 'complex' => [15, 18], 'premium' => [18, 22]],
-            'Packing'    => ['simple' => [6, 8], 'standard' => [8, 10], 'complex' => [10, 12], 'premium' => [12, 15]],
+            'Cutting'    => [
+                'simple'   => [12,  9,  7,  5],
+                'standard' => [18, 14, 10,  8],
+                'complex'  => [22, 17, 13, 10],
+                'premium'  => [28, 22, 17, 13],
+            ],
+            'Stitching'  => [
+                'simple'   => [28, 22, 18, 14],
+                'standard' => [38, 30, 24, 19],
+                'complex'  => [48, 38, 30, 24],
+                'premium'  => [58, 46, 37, 29],
+            ],
+            'Lasting'    => [
+                'simple'   => [22, 17, 14, 11],
+                'standard' => [28, 22, 17, 14],
+                'complex'  => [35, 28, 22, 17],
+                'premium'  => [42, 34, 27, 21],
+            ],
+            'Sole Press' => [
+                'simple'   => [15, 12, 10,  8],
+                'standard' => [22, 17, 13, 10],
+                'complex'  => [28, 22, 17, 13],
+                'premium'  => [34, 27, 21, 17],
+            ],
+            'Finishing'  => [
+                'simple'   => [12,  9,  7,  5],
+                'standard' => [16, 13,  9,  7],
+                'complex'  => [20, 16, 12,  9],
+                'premium'  => [24, 19, 15, 11],
+            ],
+            'Packing'    => [
+                'simple'   => [ 8,  6,  5,  4],
+                'standard' => [12,  9,  7,  6],
+                'complex'  => [15, 12,  9,  7],
+                'premium'  => [18, 14, 11,  9],
+            ],
         ];
 
-        $grades = ['junior' => 0, 'senior' => 1];
+        $grades = ['A' => 0, 'B' => 1, 'C' => 2, 'D' => 3];
         $entries = [];
+        $now     = now();
 
         foreach ($matrix as $task => $tiers) {
             foreach ($tiers as $tier => $rates) {
@@ -49,14 +84,14 @@ class RateCardSeeder extends Seeder
                         'complexity_tier' => $tier,
                         'worker_grade'    => $grade,
                         'rate_pkr'        => $rates[$idx],
-                        'created_at'      => now(),
-                        'updated_at'      => now(),
+                        'created_at'      => $now,
+                        'updated_at'      => $now,
                     ];
                 }
             }
         }
 
         RateCardEntry::insert($entries);
-        $this->command->info('Rate card v4 seeded with ' . count($entries) . ' entries.');
+        $this->command->info('Rate card v4 seeded with ' . count($entries) . ' entries (grades A/B/C/D × 4 tiers × 6 tasks).');
     }
 }

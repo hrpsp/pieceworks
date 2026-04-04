@@ -285,7 +285,7 @@ class WorkerStatementService
         $lines[] = 'Payment via: ' . strtoupper($pay['method']);
         if ($pay['number']) $lines[] = 'Account/Mobile: ' . $pay['number'];
 
-        if (isset($s['dispute_window_closes_at'] ?? null)) {
+        if (!empty($s['dispute_window_closes_at'])) {
             $lines[] = '';
             $lines[] = '_Dispute window closes: ' . Carbon::parse($s['generated_at'])->addDays(self::DISPUTE_WINDOW_DAYS)->toDateString() . '_';
         }
