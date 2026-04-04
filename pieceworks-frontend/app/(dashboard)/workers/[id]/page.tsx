@@ -121,7 +121,25 @@ export default function WorkerDetailPage({ params }: { params: { id: string } })
     worker.status === 'inactive' ? 'bg-amber-100 text-amber-700' :
     'bg-red-100 text-red-700';
 
-  const stmt        = statement.data?.data;
+  // API returns { statement: {...}, generated_at, whatsapp_sent, ... }
+  // statement.statement holds earnings_summary, deductions[], totals
+  const stmtEnvelope = statement.data?.data;
+  const stmtData     = (stmtEnvelope as any)?.statement as {
+    earnings_summary: { gross_earnings: number; ot_premium: number; shift_allowance: number; holiday_pay: number; min_wage_supplement: number; total_gross: number };
+    deductions:       Array<{ label: string; amount: number; type?: string }>;
+    totals:           { total_deductions: number; net_pay: number };
+  } | undefined;
+  const stmtLines = stmtData ? [
+    { description: 'Production Earnings',   type: 'credit' as const, amount: stmtData.earnings_summary.gross_earnings },
+    ...(stmtData.earnings_summary.ot_premium         > 0 ? [{ description: 'OT Premium',       type: 'credit' as const, amount: stmtData.earnings_summary.ot_premium }]         : []),
+    ...(stmtData.earnings_summary.shift_allowance    > 0 ? [{ description: 'Shift Allowance',  type: 'credit' as const, amount: stmtData.earnings_summary.shift_allowance }]    : []),
+    ...(stmtData.earnings_summary.holiday_pay        > 0 ? [{ description: 'Holiday Pay',      type: 'credit' as const, amount: stmtData.earnings_summary.holiday_pay }]        : []),
+    ...(stmtData.earnings_summary.min_wage_supplement > 0 ? [{ description: 'Min Wage Top-up', type: 'credit' as const, amount: stmtData.earnings_summary.min_wage_supplement }] : []),
+    ...stmtData.deductions.map(d => ({ description: d.label, type: 'debit' as const, amount: d.amount })),
+  ] : [];
+  // Keep stmt alias for backwards-compat references to envelope-level fields
+  const stmt = stmtEnvelope as any;
+
   const prodRows    = production.data?.data ?? [];
   const advRows     = advances.data?.data   ?? [];
   const shiftRows   = shifts.data?.data     ?? [];
@@ -178,11 +196,11 @@ export default function WorkerDetailPage({ params }: { params: { id: string } })
           <Separator/>
           {statement.isPending ? (
             <Skeleton className="h-16"/>
-          ) : stmt ? (
+          ) : stmtData ? (
             <>
-              <StatLine label="Gross"      value={formatPKR(stmt.gross_earnings)}/>
-              <StatLine label="Deductions" value={formatPKR(stmt.deductions)}/>
-              <StatLine label="Net Pay"    value={formatPKR(stmt.net_pay)} highlight/>
+              <StatLine label="Gross"      value={formatPKR(stmtData.earnings_summary.total_gross)}/>
+              <StatLine label="Deductions" value={formatPKR(stmtData.totals.total_deductions)}/>
+              <StatLine label="Net Pay"    value={formatPKR(stmtData.totals.net_pay)} highlight/>
             </>
           ) : (
             <p className="text-xs text-muted-foreground">No statement for {weekRef}.</p>
@@ -293,7 +311,7 @@ export default function WorkerDetailPage({ params }: { params: { id: string } })
                 variant="outline"
                 size="sm"
                 onClick={handleWhatsApp}
-                disabled={waLoading || !stmt}
+                disabled={waLoading || !stmtData}
                 className="gap-2 border-green-600/40 text-green-700 hover:bg-green-50"
               >
                 {waLoading
@@ -304,10 +322,10 @@ export default function WorkerDetailPage({ params }: { params: { id: string } })
                 }
                 {waDone ? 'Sent!' : 'Send via WhatsApp'}
               </Button>
-              {stmt?.generated_at && (
+              {stmtEnvelope?.generated_at && (
                 <span className="text-xs text-muted-foreground ml-1">
-                  Generated {new Date(stmt.generated_at).toLocaleDateString()}
-                  {stmt.whatsapp_sent_at && ` · WhatsApp ${new Date(stmt.whatsapp_sent_at).toLocaleDateString()}`}
+                  Generated {new Date((stmtEnvelope as any).generated_at).toLocaleDateString()}
+                  {(stmtEnvelope as any).whatsapp_sent && ` · WhatsApp sent`}
                 </span>
               )}
             </div>
@@ -315,7 +333,7 @@ export default function WorkerDetailPage({ params }: { params: { id: string } })
             <div className="bg-card rounded-xl border border-border overflow-hidden">
               {statement.isPending ? (
                 <TableSkeleton cols={3} rows={4}/>
-              ) : !stmt ? (
+              ) : !stmtData ? (
                 <EmptyState message={`No statement for ${weekRef}. Click "Generate Statement" to create one.`}/>
               ) : (
                 <>
@@ -326,7 +344,7 @@ export default function WorkerDetailPage({ params }: { params: { id: string } })
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-muted-foreground">Net Pay</p>
-                      <p className="text-lg font-bold text-brand-dark">{formatPKR(stmt.net_pay)}</p>
+                      <p className="text-lg font-bold text-brand-dark">{formatPKR(stmtData?.totals?.net_pay ?? 0)}</p>
                     </div>
                   </div>
                   <table className="w-full text-sm">
@@ -338,7 +356,7 @@ export default function WorkerDetailPage({ params }: { params: { id: string } })
                       </tr>
                     </thead>
                     <tbody>
-                      {stmt.lines.map((line, i) => (
+                      {stmtLines.map((line, i) => (
                         <tr key={i} className="border-b border-border last:border-0 hover:bg-muted/20">
                           <td className="px-4 py-2.5 text-foreground">{line.description}</td>
                           <td className="px-4 py-2.5">
@@ -360,7 +378,7 @@ export default function WorkerDetailPage({ params }: { params: { id: string } })
                       <tr className="border-t-2 border-border bg-muted/40">
                         <td colSpan={2} className="px-4 py-3 font-bold text-foreground">Net Pay</td>
                         <td className="px-4 py-3 font-mono font-bold text-right text-brand-dark">
-                          {formatPKR(stmt.net_pay)}
+                          {formatPKR(stmtData?.totals?.net_pay ?? 0)}
                         </td>
                       </tr>
                     </tfoot>
