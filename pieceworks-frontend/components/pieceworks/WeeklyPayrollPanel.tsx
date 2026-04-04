@@ -150,11 +150,11 @@ function ReleaseConfirmDialog({
 // ── Statement helpers ─────────────────────────────────────────────────────────
 
 async function generateStatements(weekRef: string): Promise<void> {
-  await apiClient.post(`/payroll/${weekRef}/statements/generate`);
+  await apiClient.post(`/payroll/${weekRef}/generate-statements`);
 }
 
 async function sendWhatsApp(weekRef: string): Promise<void> {
-  await apiClient.post(`/payroll/${weekRef}/statements/send-whatsapp`);
+  await apiClient.post(`/payroll/${weekRef}/send-statements`);
 }
 
 // ── Main component ────────────────────────────────────────────────────────────

@@ -86,11 +86,14 @@ export const payrollKeys = {
  * // data?.data.run?.status
  * // data?.data.stats?.unresolved_exception_count
  */
-export function useCurrentPayroll(options?: { refetchInterval?: number }) {
+export function useCurrentPayroll(options?: { refetchInterval?: number; weekRef?: string }) {
+  const url = options?.weekRef
+    ? `/payroll/current?week_ref=${encodeURIComponent(options.weekRef)}`
+    : '/payroll/current';
+
   return useQuery({
-    queryKey: payrollKeys.current(),
-    queryFn: () =>
-      apiClient.get<ApiEnvelope<CurrentPayrollResponse>>('/payroll/current'),
+    queryKey: options?.weekRef ? payrollKeys.run(options.weekRef) : payrollKeys.current(),
+    queryFn: () => apiClient.get<ApiEnvelope<CurrentPayrollResponse>>(url),
     refetchInterval: options?.refetchInterval,
   });
 }

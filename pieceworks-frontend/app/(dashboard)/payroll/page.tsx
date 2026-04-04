@@ -193,9 +193,91 @@ function PayslipModal({
           <Button
             variant="outline"
             className="gap-1.5 text-brand-dark border-brand-dark/40 hover:bg-brand-dark hover:text-white"
-            onClick={() => window.print()}
+            onClick={() => {
+              // Open payslip in a new print-optimised window so only the
+              // payslip is printed/saved as PDF — not the whole page UI.
+              const name     = worker.worker?.name ?? `Worker_${worker.worker_id}`;
+              const safeName = name.replace(/[^a-z0-9]/gi, '_');
+              const printWin = window.open('', `payslip_${safeName}`, 'width=480,height=700');
+              if (!printWin) { window.print(); return; }
+
+              const deductionRows = [
+                Number(worker.advance_deductions)    > 0 ? `<tr><td>Advance Recovery</td><td class="red">-${fmt(worker.advance_deductions)}</td></tr>` : '',
+                Number(worker.rejection_deductions)  > 0 ? `<tr><td>QC Rejection</td><td class="red">-${fmt(worker.rejection_deductions)}</td></tr>` : '',
+                Number(worker.loan_deductions)       > 0 ? `<tr><td>Loan Instalment</td><td class="red">-${fmt(worker.loan_deductions)}</td></tr>` : '',
+                Number(worker.other_deductions)      > 0 ? `<tr><td>Other Deductions</td><td class="red">-${fmt(worker.other_deductions)}</td></tr>` : '',
+              ].filter(Boolean).join('');
+
+              printWin.document.write(`<!DOCTYPE html><html><head>
+                <meta charset="utf-8"/>
+                <title>Payslip – ${name} – ${weekRef}</title>
+                <style>
+                  *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+                  body{width:420px;padding:24px;font-size:12px;color:#1a1a1a}
+                  .header{background:#322E53;color:#fff;border-radius:8px;padding:16px 20px;margin-bottom:16px}
+                  .header h1{font-size:16px;margin-top:4px}.header .meta{font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.05em}
+                  .header .week{text-align:right}.header .row{display:flex;justify-content:space-between;align-items:flex-end}
+                  .header .worker{font-size:18px;font-weight:700;margin-top:12px;border-top:1px solid rgba(255,255,255,.2);padding-top:12px}
+                  .header .grade{font-size:10px;opacity:.7}
+                  table{width:100%;border-collapse:collapse;margin-bottom:12px}
+                  th{background:#f3f4f6;text-align:left;padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;font-weight:600}
+                  td{padding:5px 8px;border-bottom:1px solid #e5e7eb;font-size:11px}
+                  td.num{text-align:right;font-family:monospace}
+                  td.green{text-align:right;color:#15803d;font-family:monospace}
+                  td.red{text-align:right;color:#dc2626;font-family:monospace}
+                  td.bold{font-weight:700}
+                  td.num.bold{text-align:right;font-family:monospace}
+                  .net-box{background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:8px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+                  .net-label{font-size:10px;color:#15803d;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+                  .net-amount{font-size:22px;font-weight:700;color:#14532d;font-family:monospace}
+                  .pmt{text-align:right;font-size:10px;color:#6b7280}
+                  .footer{margin-top:20px;font-size:9px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:8px}
+                  @media print{body{width:100%}button{display:none}}
+                </style>
+              </head><body>
+                <div class="header">
+                  <div class="row">
+                    <div><div class="meta">PieceWorks</div><h1>Wage Statement</h1></div>
+                    <div class="week"><div class="meta">Week</div><div style="font-weight:700">${weekRef}</div></div>
+                  </div>
+                  <div class="worker">${name}</div>
+                  <div class="grade">${gradeMap[worker.worker?.grade ?? ''] ?? `Grade ${worker.worker?.grade ?? '—'}`}${worker.worker?.cnic ? ' · CNIC ' + worker.worker.cnic : ''}</div>
+                </div>
+
+                <table>
+                  <tr><th colspan="2">Earnings</th></tr>
+                  <tr><td>Piece-Rate Earnings</td><td class="num">${fmt(worker.gross_earnings)}</td></tr>
+                  ${Number(worker.ot_premium) > 0 ? `<tr><td>Overtime Premium</td><td class="green">${fmt(worker.ot_premium)}</td></tr>` : ''}
+                  ${Number(worker.shift_allowance) > 0 ? `<tr><td>Shift Allowance</td><td class="green">${fmt(worker.shift_allowance)}</td></tr>` : ''}
+                  ${Number(worker.min_wage_supplement) > 0 ? `<tr><td>Min Wage Top-up</td><td class="green">${fmt(worker.min_wage_supplement)}</td></tr>` : ''}
+                  <tr><td class="bold">Total Gross</td><td class="num bold">${fmt(worker.total_gross)}</td></tr>
+                </table>
+
+                ${deductionRows ? `<table><tr><th colspan="2">Deductions</th></tr>${deductionRows}</table>` : ''}
+
+                <div class="net-box">
+                  <div>
+                    <div class="net-label">Net Pay</div>
+                    <div class="net-amount">${fmt(worker.net_pay)}</div>
+                  </div>
+                  <div class="pmt">
+                    <div>${worker.payment_method ?? '—'}</div>
+                    <div style="margin-top:2px;background:#dcfce7;color:#166534;padding:1px 6px;border-radius:4px;display:inline-block">
+                      ${worker.payment_status}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="footer">
+                  Generated by PieceWorks · ${new Date().toLocaleDateString('en-PK')} · For official payroll use only.
+                </div>
+              </body></html>`);
+              printWin.document.close();
+              printWin.focus();
+              setTimeout(() => { printWin.print(); }, 300);
+            }}
           >
-            <Printer size={13}/> Print
+            <Download size={13}/> Download PDF
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -336,10 +418,32 @@ function getISOWeek(d: Date): number {
   return Math.ceil(((d.getTime() - jan4.getTime()) / 86400000 + jan4.getDay() + 1) / 7);
 }
 
+function getCurrentISOWeekRef(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-W${String(getISOWeek(d)).padStart(2, '0')}`;
+}
+
+function offsetWeek(weekRef: string, delta: number): string {
+  const [yr, wk] = weekRef.split('-W').map(Number);
+  // Find Monday of that ISO week then shift by delta weeks
+  const jan4    = new Date(yr, 0, 4);
+  const monday  = new Date(jan4.getTime() + ((wk - 1) * 7 - (jan4.getDay() + 6) % 7) * 86400000);
+  monday.setDate(monday.getDate() + delta * 7);
+  const ny   = monday.getFullYear();
+  const nj4  = new Date(ny, 0, 4);
+  const nw   = Math.ceil(((monday.getTime() - nj4.getTime()) / 86400000 + nj4.getDay() + 1) / 7);
+  return `${ny}-W${String(nw).padStart(2, '0')}`;
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PayrollPage() {
-  const payroll      = useCurrentPayroll();
+  const currentWeekRef              = getCurrentISOWeekRef();
+  const [selectedWeek, setSelectedWeek] = useState(currentWeekRef);
+
+  const payroll      = useCurrentPayroll({
+    weekRef: selectedWeek !== currentWeekRef ? selectedWeek : undefined,
+  });
   const lock         = useLockPayroll();
   const release      = useReleasePayment();
   const [resolving,   setResolving]  = useState<PayrollException | null>(null);
@@ -348,8 +452,13 @@ export default function PayrollPage() {
   const [workerPage,  setWorkerPage] = useState(1);
   const [activeTab,   setActiveTab]  = useState<'lines' | 'payslips'>('lines');
 
+  function navigateWeek(delta: number) {
+    setSelectedWeek(prev => offsetWeek(prev, delta));
+    setWorkerPage(1);
+  }
+
   const run     = payroll.data?.data?.run;
-  const weekRef = payroll.data?.data?.week_ref ?? '';
+  const weekRef = payroll.data?.data?.week_ref ?? selectedWeek;
   const stats   = payroll.data?.data?.stats;
 
   const exceptions = useQuery({
@@ -400,7 +509,33 @@ export default function PayrollPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Payroll</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{weekRef || 'Current week'}</p>
+          {/* Week navigator */}
+          <div className="flex items-center gap-1.5 mt-1">
+            <button
+              onClick={() => navigateWeek(-1)}
+              className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              title="Previous week"
+            >
+              <ChevronLeft size={15}/>
+            </button>
+            <span className="text-sm font-mono text-foreground select-none">{selectedWeek}</span>
+            <button
+              onClick={() => navigateWeek(1)}
+              disabled={selectedWeek === currentWeekRef}
+              className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Next week"
+            >
+              <ChevronRight size={15}/>
+            </button>
+            {selectedWeek !== currentWeekRef && (
+              <button
+                onClick={() => { setSelectedWeek(currentWeekRef); setWorkerPage(1); }}
+                className="text-xs text-brand-dark underline underline-offset-2 ml-1 hover:no-underline"
+              >
+                current
+              </button>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button

@@ -70,6 +70,7 @@ class BataDemoSeeder extends Seeder
             $this->seedCompliance($workers);
             $this->seedProductionRecords($workers, $lines, $rceMap, $users['supervisor']);
             $this->seedAttendanceRecords($workers);
+            $this->seedShiftAdjustments($workers, $lines, $users['supervisor']);
             $payrollRun = $this->seedPayrollRun();
             $this->seedWorkerPayrolls($workers, $payrollRun, $rceMap);
             $this->seedPayrollExceptions($workers, $payrollRun);
@@ -565,6 +566,130 @@ class BataDemoSeeder extends Seeder
         }
 
         $this->command->info("  ✓ {$insertCount} attendance records");
+    }
+
+    // ── 10b. Shift adjustments ────────────────────────────────────────────────
+
+    /**
+     * Seeds 5 realistic shift adjustment records for W15.
+     *
+     * These represent workers who were moved to a different shift for
+     * operational reasons — exactly the kind of data the Shift Adjustments
+     * tab in the Workers module is designed to surface.
+     *
+     * Mapping:
+     *   0  Usman Farooq   E2 → GA  Line B  Apr 7   line_shortage
+     *   1  Hamid Ali      E2 → E3  Line B  Apr 8   skill_requirement
+     *   7  Naeem Khan     GA → E1  Line A  Apr 9   worker_request
+     *   12 Rehman Iqbal   E3 → E2  Line C  Apr 10  line_shortage
+     *   17 Tahir Iqbal    E1 → GA  Line D  Apr 11  skill_requirement
+     */
+    private function seedShiftAdjustments(array $workers, array $lines, object $supervisor): void
+    {
+        $defs = [
+            [
+                'workerIdx'       => 0,   // Usman Farooq (A, E2, LB)
+                'work_date'       => '2026-04-07',
+                'scheduled_shift' => 'E2',
+                'actual_shift'    => 'GA',
+                'lineKey'         => 'LB',
+                'hours_gap'       => 9.0,
+                'ot_flagged'      => false,
+                'reason'          => 'line_shortage',
+                'reason_text'     => 'Day-shift team short by one stitcher — Usman covered GA slot.',
+                'confirmed_at'    => '2026-04-07 07:15:00',
+            ],
+            [
+                'workerIdx'       => 1,   // Hamid Ali (B, E2, LB)
+                'work_date'       => '2026-04-08',
+                'scheduled_shift' => 'E2',
+                'actual_shift'    => 'E3',
+                'lineKey'         => 'LB',
+                'hours_gap'       => 2.0,
+                'ot_flagged'      => true,
+                'reason'          => 'skill_requirement',
+                'reason_text'     => 'Overnight rush order — Grade B stitcher required for intricate upper assembly.',
+                'confirmed_at'    => '2026-04-08 22:10:00',
+            ],
+            [
+                'workerIdx'       => 7,   // Naeem Khan (C, GA, LA)
+                'work_date'       => '2026-04-09',
+                'scheduled_shift' => 'GA',
+                'actual_shift'    => 'E1',
+                'lineKey'         => 'LA',
+                'hours_gap'       => null,
+                'ot_flagged'      => false,
+                'reason'          => 'worker_request',
+                'reason_text'     => 'Worker requested E1 shift swap to attend family function; approved by supervisor.',
+                'confirmed_at'    => '2026-04-09 06:05:00',
+            ],
+            [
+                'workerIdx'       => 12,  // Rehman Iqbal (B, E3, LC)
+                'work_date'       => '2026-04-10',
+                'scheduled_shift' => 'E3',
+                'actual_shift'    => 'E2',
+                'lineKey'         => 'LC',
+                'hours_gap'       => 8.0,
+                'ot_flagged'      => false,
+                'reason'          => 'line_shortage',
+                'reason_text'     => 'E2 shift lasting team was two workers short — Rehman moved up one shift.',
+                'confirmed_at'    => '2026-04-10 14:20:00',
+            ],
+            [
+                'workerIdx'       => 17,  // Tahir Iqbal (C, E1, LD)
+                'work_date'       => '2026-04-11',
+                'scheduled_shift' => 'E1',
+                'actual_shift'    => 'GA',
+                'lineKey'         => 'LD',
+                'hours_gap'       => 1.0,
+                'ot_flagged'      => false,
+                'reason'          => 'skill_requirement',
+                'reason_text'     => 'Saturday day-shift packing crew needed; Tahir redeployed from E1 to GA.',
+                'confirmed_at'    => '2026-04-11 07:30:00',
+            ],
+        ];
+
+        $count = 0;
+        foreach ($defs as $def) {
+            $worker = $workers[$def['workerIdx']];
+            $lineId = $lines[$def['lineKey']]->id;
+
+            // Find the matching production record so we can link it (nullable)
+            $prodRecord = DB::table('production_records')
+                ->where('worker_id', $worker->id)
+                ->where('work_date', $def['work_date'])
+                ->first();
+
+            $already = DB::table('shift_adjustments')
+                ->where('worker_id', $worker->id)
+                ->where('work_date', $def['work_date'])
+                ->exists();
+
+            if ($already) {
+                continue;
+            }
+
+            DB::table('shift_adjustments')->insert([
+                'production_record_id' => $prodRecord?->id,
+                'worker_id'            => $worker->id,
+                'work_date'            => $def['work_date'],
+                'scheduled_shift'      => $def['scheduled_shift'],
+                'actual_shift'         => $def['actual_shift'],
+                'line_id'              => $lineId,
+                'hours_gap_from_last_shift' => $def['hours_gap'],
+                'overtime_flagged'     => $def['ot_flagged'],
+                'authorized_by'        => $supervisor->id,
+                'reason'               => $def['reason'],
+                'reason_text'          => $def['reason_text'],
+                'confirmed_at'         => $def['confirmed_at'],
+                'created_at'           => now(),
+                'updated_at'           => now(),
+            ]);
+
+            $count++;
+        }
+
+        $this->command->info("  ✓ {$count} shift adjustment records (W15)");
     }
 
     // ── 11. Payroll run ────────────────────────────────────────────────────────

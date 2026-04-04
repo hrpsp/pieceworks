@@ -34,9 +34,12 @@ class PayrollController extends Controller
     /**
      * Return the payroll run for the current ISO week (creates a stub if absent).
      */
-    public function current(): JsonResponse
+    public function current(Request $request): JsonResponse
     {
-        $weekRef = Carbon::now()->format('o-\WW');
+        // Allow an explicit week_ref override so the UI can browse historical runs
+        $weekRef = $request->input('week_ref')
+            ? preg_replace('/[^0-9W\-]/', '', $request->input('week_ref'))
+            : Carbon::now()->format('o-\WW');
 
         [$year, $isoWeek] = explode('-W', $weekRef);
         $startDate = Carbon::now()->setISODate((int) $year, (int) $isoWeek)->startOfDay();
@@ -128,7 +131,21 @@ class PayrollController extends Controller
             $query->where('payment_status', $request->payment_status);
         }
 
-        return $this->paginated($query->paginate($request->input('per_page', 50)));
+        $paginated = $query->paginate($request->input('per_page', 50));
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Success',
+            'data'    => $paginated->items(),
+            'meta'    => [
+                'current_page' => $paginated->currentPage(),
+                'last_page'    => $paginated->lastPage(),
+                'per_page'     => $paginated->perPage(),
+                'total'        => $paginated->total(),
+                'from'         => $paginated->firstItem(),
+                'to'           => $paginated->lastItem(),
+            ],
+        ]);
     }
 
     // ── POST /api/payroll/{weekRef}/lock ────────────────────────────────────
